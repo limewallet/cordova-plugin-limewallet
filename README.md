@@ -11,4 +11,4 @@ cordova plugin add path-to-com.latincoin.BitsharesPlugin
   
 ## iOS requirements after installation
 After plugin installation, open XCode project.
-Please add "$(SRCROOT)/../../com.latincoin.BitsharesPlugin/src/ios/includes" to Build Settings (Combined view mode) -> Header Search Paths  
+Please add "$(SRCROOT)/../../plugins/com.latincoin.BitsharesPlugin/src/ios/includes" to Build Settings (Combined view mode) -> Header Search Paths  
