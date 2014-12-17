@@ -1,0 +1,34 @@
+//
+//  BitsharesPlugin.h
+//  Bitwallet
+//
+//  Created by Pablo on 12/2/14.
+//
+//
+
+#import <Cordova/CDV.h>
+
+@interface BitsharesPlugin : CDVPlugin{
+    NSString* callbackID;
+}
+
+@property (nonatomic, copy) NSString* callbackID;
+
+-(void) createMasterKey:(CDVInvokedUrlCommand*)command;
+-(void) extractDataFromKey:(CDVInvokedUrlCommand*)command;
+-(void) derivePrivate:(CDVInvokedUrlCommand*)command;
+-(void) extendedPublicFromPrivate:(CDVInvokedUrlCommand*)command;
+
+-(void) encryptString:(CDVInvokedUrlCommand*)command;
+-(void) decryptString:(CDVInvokedUrlCommand*)command;
+
+-(void) isValidKey:(CDVInvokedUrlCommand*)command;
+-(void) isValidWif:(CDVInvokedUrlCommand*)command;
+
+-(void) compactSignatureForHash:(CDVInvokedUrlCommand*)command;
+-(void) btsWifToAddress:(CDVInvokedUrlCommand*)command;
+-(void) btsPubToAddress:(CDVInvokedUrlCommand*)command;
+-(void) btsIsValidAddress:(CDVInvokedUrlCommand*)command;
+-(void) btsIsValidPubkey:(CDVInvokedUrlCommand*)command;
+
+@end
