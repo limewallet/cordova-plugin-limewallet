@@ -9,5 +9,6 @@ Based on https://github.com/oleganza/CoreBitcoin
 ## How to add plugin
 cordova plugin add path-to-com.latincoin.BitsharesPlugin 
   
-## After installation
-After plugin installation please add "$(SRCROOT)/../../com.latincoin.BitsharesPlugin/src/ios/includes" to Build Settings (Combined view mode) -> Header Search Paths  
+## iOS requirements after installation
+After plugin installation, open XCode project.
+Please add "$(SRCROOT)/../../com.latincoin.BitsharesPlugin/src/ios/includes" to Build Settings (Combined view mode) -> Header Search Paths  
