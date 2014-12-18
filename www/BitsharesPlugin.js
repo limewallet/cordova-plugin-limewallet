@@ -1,7 +1,5 @@
-//POSTA
-//cordova.define("org.apache.cordova.globalization.globalization", function(require, exports, module) {
 
-cordova.define("com.latincoin.BitsharesPlugin.BitsharesPlugin", function(require, exports, module) {
+//cordova.define("com.latincoin.BitsharesPlugin.BitsharesPlugin", function(require, exports, module) {
   var cordova = require('cordova');
   function BitsharesPlugin() {}
   
@@ -63,7 +61,7 @@ cordova.define("com.latincoin.BitsharesPlugin.BitsharesPlugin", function(require
   };
    
   cordova.addConstructor(BitsharesPlugin.install);
-});
+//});
 
 
 
