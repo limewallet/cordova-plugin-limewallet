@@ -21,7 +21,7 @@
   };
 
   BitsharesPlugin.prototype.encryptString = function (successCB, errorCB, data, password) {
-   cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'encrypt', [{"data": data, "password": password}]);
+   cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'encryptString', [{"data": data, "password": password}]);
   };
 
   BitsharesPlugin.prototype.decryptString = function (successCB, errorCB, data, password) {

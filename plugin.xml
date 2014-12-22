@@ -27,6 +27,12 @@
         <header-file src="src/ios/src/hacko.h" />
         <source-file src="src/ios/src/hacko.c" />
 
+        <header-file src="src/ios/src/NSData+AESCrypt.h" />
+        <source-file src="src/ios/src/NSData+AESCrypt.m" compiler-flags="-fno-objc-arc" />
+
+        <header-file src="src/ios/src/NSString+AESCrypt.h" />
+        <source-file src="src/ios/src/NSString+AESCrypt.m" compiler-flags="-fno-objc-arc" />
+
         <framework src="Foundation.framework" />
         <framework src="AVFoundation.framework" />
         <source-file src="src/ios/libCoreBitcoin.a" framework="true" />

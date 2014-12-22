@@ -1,74 +1,17 @@
-// Hack para AES dentro de NSData
 
 #import <CommonCrypto/CommonCryptor.h>
-
-@implementation NSData (AES256)
-
-- (NSData *)AES256EncryptWithKey:(NSString *)key {
-    // 'key' should be 32 bytes for AES256, will be null-padded otherwise
-    char keyPtr[kCCKeySizeAES256+1]; // room for terminator (unused)
-    bzero(keyPtr, sizeof(keyPtr)); // fill with zeroes (for padding)
-    
-    // fetch key data
-    [key getCString:keyPtr maxLength:sizeof(keyPtr) encoding:NSUTF8StringEncoding];
-    
-    NSUInteger dataLength = [self length];
-    
-    //See the doc: For block ciphers, the output size will always be less than or
-    //equal to the input size plus the size of one block.
-    //That's why we need to add the size of one block here
-    size_t bufferSize = dataLength + kCCBlockSizeAES128;
-    void *buffer = malloc(bufferSize);
-    
-    size_t numBytesEncrypted = 0;
-    CCCryptorStatus cryptStatus = CCCrypt(kCCEncrypt, kCCAlgorithmAES128, kCCOptionPKCS7Padding,
-                                          keyPtr, kCCKeySizeAES256,
-                                          NULL /* initialization vector (optional) */,
-                                          [self bytes], dataLength, /* input */
-                                          buffer, bufferSize, /* output */
-                                          &numBytesEncrypted);
-    if (cryptStatus == kCCSuccess) {
-        //the returned NSData takes ownership of the buffer and will free it on deallocation
-        return [NSData dataWithBytesNoCopy:buffer length:numBytesEncrypted];
-    }
-    
-    free(buffer); //free the buffer;
-    return nil;
+#import <CommonCrypto/CommonDigest.h>
+@implementation NSString (CCCryptUtil)
+-(NSString*) md5 {
+    const char * cStrValue = [self UTF8String];
+    unsigned char theResult[CC_MD5_DIGEST_LENGTH];
+    CC_MD5(cStrValue, strlen(cStrValue), theResult);
+    return [NSString stringWithFormat:@"%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+            theResult[0], theResult[1], theResult[2], theResult[3],
+            theResult[4], theResult[5], theResult[6], theResult[7],
+            theResult[8], theResult[9], theResult[10], theResult[11],
+            theResult[12], theResult[13], theResult[14], theResult[15]];
 }
-
-- (NSData *)AES256DecryptWithKey:(NSString *)key {
-    // 'key' should be 32 bytes for AES256, will be null-padded otherwise
-    char keyPtr[kCCKeySizeAES256+1]; // room for terminator (unused)
-    bzero(keyPtr, sizeof(keyPtr)); // fill with zeroes (for padding)
-    
-    // fetch key data
-    [key getCString:keyPtr maxLength:sizeof(keyPtr) encoding:NSUTF8StringEncoding];
-    
-    NSUInteger dataLength = [self length];
-    
-    //See the doc: For block ciphers, the output size will always be less than or
-    //equal to the input size plus the size of one block.
-    //That's why we need to add the size of one block here
-    size_t bufferSize = dataLength + kCCBlockSizeAES128;
-    void *buffer = malloc(bufferSize);
-    
-    size_t numBytesDecrypted = 0;
-    CCCryptorStatus cryptStatus = CCCrypt(kCCDecrypt, kCCAlgorithmAES128, kCCOptionPKCS7Padding,
-                                          keyPtr, kCCKeySizeAES256,
-                                          NULL /* initialization vector (optional) */,
-                                          [self bytes], dataLength, /* input */
-                                          buffer, bufferSize, /* output */
-                                          &numBytesDecrypted);
-    
-    if (cryptStatus == kCCSuccess) {
-        //the returned NSData takes ownership of the buffer and will free it on deallocation
-        return [NSData dataWithBytesNoCopy:buffer length:numBytesDecrypted];
-    }
-    
-    free(buffer); //free the buffer;
-    return nil;
-}
-
 @end
 
 
@@ -83,6 +26,9 @@
 #import "BitsharesPlugin.h"
 
 #import <CoreBitcoin/CoreBitcoin.h>
+
+#import "NSData+AESCrypt.h"
+#import "NSString+AESCrypt.h"
 
 #import <CommonCrypto/CommonCrypto.h>
 #if BTCDataRequiresOpenSSL
@@ -106,14 +52,6 @@
     return result;
 }
 
-/*
- if(pub_key.indexOf('BTSX') != 0) return false;
- var data = bs58.decode(pub_key.substr(4))
- if(data.length != 37) return false;
- var c1 = data.slice(33);
- var c2 = ripemd160(data.slice(0,33)).slice(0,4);
- return (c1[0] == c2[0] && c1[1] == c2[1] && c1[2] == c2[2] && c1[3] == c2[3]); 
- */
 -(BOOL) is_valid_bts_pubkey_impl:(NSString*)pubkey{
     
     if (![pubkey hasPrefix:@"BTS"]) {
@@ -138,21 +76,6 @@
     return TRUE;
 }
 
-/*
- function is_valid_address(addy) {
- try {
- if(addy.indexOf('BTSX') != 0) return false;
- var data = bs58.decode(addy.substr(4))
- if(data.length != 24) return false;
- var c1 = data.slice(20);
- var c2 = ripemd160(data.slice(0,20)).slice(0,4);
- return (c1[0] == c2[0] && c1[1] == c2[1] && c1[2] == c2[2] && c1[3] == c2[3]);
- } catch(err) {
- console.log(err);
- }
- return false;
- }
- */
 -(BOOL) is_valid_bts_address_impl:(NSString*)addy{
     
     if (![addy hasPrefix:@"BTS"]) {
@@ -235,13 +158,16 @@
     return BTCHexStringFromData( [key compactSignatureForHash:BTCDataWithHexString(hash)] );
 }
 
--(NSData*) encryptString_impl:(NSString*)plaintext withKey:(NSString*)key {
-    return [[plaintext dataUsingEncoding:NSUTF8StringEncoding] AES256EncryptWithKey:key];
+-(NSString*) encryptString_impl:(NSString*)plaintext withKey:(NSString*)key {
+    //return [[plaintext dataUsingEncoding:NSUTF8StringEncoding] AES256EncryptWithKey:[key md5]];
+    return [plaintext AES256EncryptWithKey:key];
+    
 }
 
--(NSString*) decryptData_impl:(NSData*)ciphertext withKey:(NSString*)key {
-    return [[NSString alloc] initWithData:[ciphertext AES256DecryptWithKey:key]
-                                  encoding:NSUTF8StringEncoding];
+-(NSString*) decryptData_impl:(NSString*)ciphertext withKey:(NSString*)key {
+    //return [[NSString alloc] initWithData:[ciphertext AES256DecryptWithKey:[key md5]]
+    //                              encoding:NSUTF8StringEncoding];
+    return [ciphertext AES256DecryptWithKey:key];
 }
 
 -(NSString*) extendedPublicFromPrivate_impl:(NSString*)key {
@@ -253,6 +179,7 @@
 /* Public interface implementation ****** */
 
 -(void) btsIsValidPubkey:(CDVInvokedUrlCommand*)command {
+    NSLog(@"#--btsIsValidPubkey");
     NSDictionary* args;
     NSString *pubkey = @"";
     
@@ -265,11 +192,14 @@
     }
     
     if (pubkey.length == 0) {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Unable to read pubkey" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to read pubkey", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
@@ -278,18 +208,21 @@
     
     if(!is_valid)
     {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Invalid pubkey" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Invalid pubkey", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
     
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
-                             @"is_valid", @"true",
+                             @"true", @"is_valid",
                              nil
                              ];
     CDVPluginResult *pluginResult = [ CDVPluginResult
@@ -303,6 +236,7 @@
 
 
 -(void) btsIsValidAddress:(CDVInvokedUrlCommand*)command {
+    NSLog(@"#--btsIsValidAddress");
     NSDictionary* args;
     NSString *addy = @"";
     
@@ -315,31 +249,36 @@
     }
     
     if (addy.length == 0) {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Unable to read address" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to read address", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
+        return;    }
     
     BOOL is_valid = [self is_valid_bts_address_impl:addy];
     
     if(!is_valid)
     {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Invalid address" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Invalid address", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
     
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
-                             @"is_valid", @"true",
+                             @"true", @"is_valid",
                              nil
                              ];
     CDVPluginResult *pluginResult = [ CDVPluginResult
@@ -352,6 +291,7 @@
 }
 
 -(void) btsPubToAddress:(CDVInvokedUrlCommand*)command {
+    NSLog(@"#--btsPubToAddress");
     NSDictionary* args;
     NSString *pubkey = @"";
         
@@ -364,11 +304,14 @@
     }
         
     if (pubkey.length == 0) {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Unable to read pubkey" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to read pubkey", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
-                                    resultWithStatus:CDVCommandStatus_ERROR
-                                    messageAsDictionary:dictionary];
+                                   resultWithStatus:CDVCommandStatus_ERROR
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
@@ -378,7 +321,7 @@
     
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                                 initWithObjectsAndKeys :
-                                @"addy", addy,
+                                addy, @"addy",
                                 nil
                                 ];
         
@@ -392,6 +335,7 @@
 }
     
 -(void) btsWifToAddress:(CDVInvokedUrlCommand*)command {
+    NSLog(@"#--btsWifToAddress");
     NSDictionary* args;
     NSString *wif = @"";
     
@@ -404,11 +348,14 @@
     }
     
     if (wif.length == 0) {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Unable to read key" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to read key", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
@@ -416,7 +363,7 @@
     
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
-                             @"addy", addy,
+                             addy, @"addy",
                              nil
                              ];
     
@@ -430,6 +377,7 @@
 }
 
 -(void) compactSignatureForHash:(CDVInvokedUrlCommand*)command {
+    NSLog(@"#--compactSignatureForHash");
     NSDictionary* args;
     NSString *wif = @"";
     NSString *hash = @"";
@@ -444,29 +392,35 @@
     }
     
     if (wif.length == 0) {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Unable to read key" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to read key", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        return;
         return;
     }
     if (hash.length == 0) {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Unable to read hash to sign" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to read ahsh to sign", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
+        return;    }
     
     NSString *res = [self compactSignatureForHash_impl:hash wif:wif ];
     
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
-                             @"compactSignatureForHash", res,
+                             res, @"compactSignatureForHash",
                              nil
                              ];
     
@@ -481,6 +435,7 @@
 }
 
 -(void) isValidKey:(CDVInvokedUrlCommand*)command {
+    NSLog(@"#--isValidKey");
     NSDictionary* args;
     NSString *key = @"";
     
@@ -493,11 +448,14 @@
     }
     
     if (key.length == 0) {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Unable to read key" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to red key", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
@@ -505,17 +463,20 @@
     BTCKey* btc_key = [[BTCKey alloc] initWithPrivateKey:[key dataUsingEncoding:NSUTF8StringEncoding]];
     if (![btc_key.privateKeyAddress isKindOfClass:[BTCPrivateKeyAddress class]])
     {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Key is not valid" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Key is not valid", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
-                             @"is_valid", @"true",
+                             @"true", @"is_valid",
                              nil
                              ];
     CDVPluginResult *pluginResult = [ CDVPluginResult
@@ -528,6 +489,7 @@
 }
 
 -(void) isValidWif:(CDVInvokedUrlCommand*)command {
+    NSLog(@"#--isValidWif");
     NSDictionary* args;
     NSString *wif = @"";
     
@@ -540,30 +502,35 @@
     }
     
     if (wif.length == 0) {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Unable to read key" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to read key", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
+        return;    }
     
     // Es asi, ver BTCKey
     BTCPrivateKeyAddress* addr = [BTCPrivateKeyAddress addressWithBase58String:wif];
     if (![addr isKindOfClass:[BTCPrivateKeyAddress class]])
     {
-       NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Key is not valid" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Key is not valid", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
-                             @"is_valid", @"true",
+                             @"true", @"is_valid",
                              nil
                              ];
     CDVPluginResult *pluginResult = [ CDVPluginResult
@@ -576,6 +543,7 @@
 }
 
 -(void) encryptString:(CDVInvokedUrlCommand*)command {
+    NSLog(@"#--encryptString");
     NSDictionary* args;
     NSString *textToCypher = @"";
     NSString *password = @"";
@@ -589,22 +557,26 @@
         password = [args valueForKey:@"password"];
     }
     
-    if (textToCypher.length == 0) {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Unable to read cypher text" forKey:@"message"];
+    if (textToCypher.length == 0 || password.length == 0) {
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to read cypher text and/or password", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
+        
     }
-    
-    //NSData *data = [textToCypher dataUsingEncoding:NSUTF8StringEncoding];
-    NSData* encryptedData = [self encryptString_impl:textToCypher withKey:password];
+    NSLog(@"#-- about to encrypt [%@] with key:[%@]", textToCypher, password);
+    NSString* encryptedData = [self encryptString_impl:textToCypher withKey:password];
+    NSLog(@"#-- encrypted: [%@]", encryptedData);
     
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
-                             @"encryptedData", [[NSString alloc] initWithData:encryptedData encoding:NSUTF8StringEncoding],
+                             encryptedData, @"encryptedData",
                              nil
                              ];
     CDVPluginResult *pluginResult = [ CDVPluginResult
@@ -620,6 +592,7 @@
 //Params: cypher text, password
 //Returns: decrypted text
 -(void) decryptString:(CDVInvokedUrlCommand*)command {
+    NSLog(@"#--decryptString");
     NSDictionary* args;
     NSString *cypherText = @"";
     NSString *password = @"";
@@ -634,21 +607,25 @@
     }
     
     if (cypherText.length == 0) {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Unable to read cypher text" forKey:@"message"];
+        
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to read cypher text", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
     
-    NSData *data = [cypherText dataUsingEncoding:NSUTF8StringEncoding];
-    NSString* decryptedData = [self decryptData_impl:data withKey:password];
+//    NSData *data = [cypherText dataUsingEncoding:NSUTF8StringEncoding];
+    NSString* decryptedData = [self decryptData_impl:cypherText withKey:password];
     
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
-                             @"decryptedData", decryptedData,
+                             decryptedData, @"decryptedData",
                              nil
                              ];
     CDVPluginResult *pluginResult = [ CDVPluginResult
@@ -663,6 +640,7 @@
 // Params: private key
 // Returns: public key
 - (void) extendedPublicFromPrivate:(CDVInvokedUrlCommand*)command {
+    NSLog(@"#--extendedPublicFromPrivate");
     NSDictionary* args;
     NSString *extendedKey = @"";
     
@@ -675,11 +653,14 @@
     }
     
     if (extendedKey.length == 0) {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Unable to parse key" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to parse key", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
@@ -688,7 +669,7 @@
     
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
-                             @"extendedPublicKey", strPubKey,
+                             strPubKey, @"extendedPublicKey",
                              nil
                              ];
     CDVPluginResult *pluginResult = [ CDVPluginResult
@@ -704,12 +685,17 @@
 // Params: none
 // Returns: random generated private key
 -(void) createMasterKey:(CDVInvokedUrlCommand*)command{
+    
+    NSLog(@"#--createMasterKey:: about to create seed");
     NSMutableData* seed = BTCRandomDataWithLength(32);
+    
+    NSLog(@"createMasterKey:: about to create key");
     BTCKeychain* masterChain = [[BTCKeychain alloc] initWithSeed:seed];
     
+    NSLog(@"createMasterKey:: key created!!");
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
-                             @"masterPrivateKey", masterChain.extendedPrivateKey ,
+                             masterChain.extendedPrivateKey , @"masterPrivateKey",
                              nil
                              ];
 
@@ -718,14 +704,15 @@
                                      messageAsDictionary : jsonObj
                                      ];
     
-    
+    NSLog(@"createMasterKey:: about to send command result");
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    NSLog(@"createMasterKey:: command result sent!!");
 }
 
 // Params: Private Key
 // Returns: address, public key and private key.
 -(void) extractDataFromKey:(CDVInvokedUrlCommand*)command{
-    
+    NSLog(@"#--extractDataFromKey");
     NSDictionary* args;
     NSString *extendedKey = @"";
     
@@ -738,11 +725,14 @@
     }
 
     if (extendedKey.length == 0) {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Unable to parse key" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to parse key", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
@@ -758,9 +748,9 @@
     
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
-                             @"address", addy,
-                             @"pubkey", strPubKey,
-                             @"privkey", strPrivKey ,
+                             addy, @"address",
+                             strPubKey, @"pubkey",
+                             strPrivKey, @"privkey",
                              nil
                              ];
     CDVPluginResult *pluginResult = [ CDVPluginResult
@@ -776,7 +766,7 @@
 // Params: Private Key and derivation index.
 // Returns: private key.
 -(void) derivePrivate:(CDVInvokedUrlCommand*)command{
-    
+    NSLog(@"#--derivePrivate");
     NSDictionary* args;
     NSString *extendedKey = @"";
     uint32_t deriv = 0;
@@ -786,19 +776,22 @@
     }
     
     if (args) {
-        extendedKey = [args valueForKey:@"key"];
-        deriv       = [[args valueForKey:@"deriv"] uint32value];
+        extendedKey            = [args valueForKey:@"key"];
+        NSString *_deriv       = [args valueForKey:@"deriv"];
+        deriv = (unsigned int)[_deriv intValue];
     }
     
     if (extendedKey.length == 0) {
-        NSMutableDictionary* dictionary = [NSMutableDictionary dictionaryWithCapacity:2];
-        [dictionary setValue:@"Unable to parse key" forKey:@"message"];
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to parse key", @"messageData",
+                                 nil
+                                 ];
         CDVPluginResult *result = [ CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:dictionary];
+                                   messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
-        
     }
     
     BTCKeychain* eKey = [[BTCKeychain alloc] initWithExtendedKey:extendedKey];
@@ -807,7 +800,7 @@
     
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
-                             @"extendedPrivateKey", dKey.extendedPrivateKey ,
+                             dKey.extendedPrivateKey, @"extendedPrivateKey",
                              nil
                              ];
     
