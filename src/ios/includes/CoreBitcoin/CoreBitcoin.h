@@ -9,7 +9,7 @@
 #import "BTCAddress.h"
 #import "BTCBase58.h"
 #import "BTCBigNumber.h"
-#import <CoreBitcoin/BTCBitcoinURL.h>
+//#import <CoreBitcoin/BTCBitcoinURL.h> //NSURLComponents!!!
 #import <CoreBitcoin/BTCBlindSignature.h>
 #import <CoreBitcoin/BTCBlock.h>
 #import <CoreBitcoin/BTCBlockchainInfo.h>
