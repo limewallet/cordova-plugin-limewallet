@@ -26,10 +26,8 @@
 #import "BitsharesPlugin.h"
 
 #import <CoreBitcoin/CoreBitcoin.h>
-
-#import "NSData+AESCrypt.h"
-#import "NSString+AESCrypt.h"
-
+#import "RNOpenSSLEncryptor.h"
+#import "RNOpenSSLDecryptor.h"
 #import <CommonCrypto/CommonCrypto.h>
 #if BTCDataRequiresOpenSSL
 #include <openssl/ripemd.h>
@@ -159,15 +157,37 @@
 }
 
 -(NSString*) encryptString_impl:(NSString*)plaintext withKey:(NSString*)key {
-    //return [[plaintext dataUsingEncoding:NSUTF8StringEncoding] AES256EncryptWithKey:[key md5]];
-    return [plaintext AES256EncryptWithKey:key];
+    NSData *data = [plaintext dataUsingEncoding:NSUTF8StringEncoding];
+    NSError *error;
+    NSData *encryptedData = [RNOpenSSLEncryptor encryptData:data
+                                                withSettings:kRNCryptorAES256Settings
+                                                password:key
+                                                error:&error];
     
+    if ([encryptedData respondsToSelector:@selector(base64EncodedStringWithOptions:)]) {
+        return [encryptedData base64EncodedStringWithOptions:kNilOptions];  // iOS 7+
+    } else {
+        return [encryptedData base64Encoding];                              // pre iOS7
+    }
+    //return [encryptedData base64EncodedStringWithOptions:0];
 }
 
 -(NSString*) decryptData_impl:(NSString*)ciphertext withKey:(NSString*)key {
-    //return [[NSString alloc] initWithData:[ciphertext AES256DecryptWithKey:[key md5]]
-    //                              encoding:NSUTF8StringEncoding];
-    return [ciphertext AES256DecryptWithKey:key];
+    
+    NSData *data;
+    if ([NSData instancesRespondToSelector:@selector(initWithBase64EncodedString:options:)]) {
+        data = [[NSData alloc] initWithBase64EncodedString:ciphertext options:0]; // iOS 7+
+    } else {
+        data = [[NSData alloc] initWithBase64Encoding:ciphertext];                // pre iOS7
+    }
+    
+    
+    NSError *error;
+    NSData *decryptedData = [RNOpenSSLDecryptor decryptData:data
+                                                withSettings:kRNCryptorAES256Settings
+                                                password:key
+                                                error:&error];
+    return [[NSString alloc] initWithData:decryptedData encoding:NSUTF8StringEncoding];
 }
 
 -(NSString*) extendedPublicFromPrivate_impl:(NSString*)key {

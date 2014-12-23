@@ -26,12 +26,29 @@
 
         <header-file src="src/ios/src/hacko.h" />
         <source-file src="src/ios/src/hacko.c" />
-
+        <!--
         <header-file src="src/ios/src/NSData+AESCrypt.h" />
         <source-file src="src/ios/src/NSData+AESCrypt.m" compiler-flags="-fno-objc-arc" />
-
         <header-file src="src/ios/src/NSString+AESCrypt.h" />
         <source-file src="src/ios/src/NSString+AESCrypt.m" compiler-flags="-fno-objc-arc" />
+        -->
+        <header-file src="src/ios/src/RNCryptor/RNCryptor.h" />
+        <header-file src="src/ios/src/RNCryptor/RNCryptor+Private.h" />
+        <header-file src="src/ios/src/RNCryptor/RNCryptorEngine.h" />
+        <header-file src="src/ios/src/RNCryptor/RNDecryptor.h" />
+        <header-file src="src/ios/src/RNCryptor/RNEncryptor.h" />
+
+        <source-file src="src/ios/src/RNCryptor/RNCryptor.m" />
+        <source-file src="src/ios/src/RNCryptor/RNCryptorEngine.m" />
+        <source-file src="src/ios/src/RNCryptor/RNDecryptor.m" />
+        <source-file src="src/ios/src/RNCryptor/RNEncryptor.m" />
+
+        <header-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLCryptor.h" />
+        <header-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLCryptor.m" />
+        <header-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLDecryptor.h" />
+        <header-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLDecryptor.m" />
+        <header-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLEncryptor.h" />
+        <header-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLEncryptor.m" />
 
         <framework src="Foundation.framework" />
         <framework src="AVFoundation.framework" />
