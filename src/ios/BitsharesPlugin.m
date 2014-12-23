@@ -14,7 +14,35 @@
 }
 @end
 
+#import <Foundation/Foundation.h>
+@interface NSData (NSData_Conversion)
 
+#pragma mark - String Conversion
+- (NSString *)hexadecimalString;
+
+@end
+
+@implementation NSData (NSData_Conversion)
+
+#pragma mark - String Conversion
+- (NSString *)hexadecimalString {
+    /* Returns hexadecimal string of NSData. Empty string if data is empty.   */
+    
+    const unsigned char *dataBuffer = (const unsigned char *)[self bytes];
+    
+    if (!dataBuffer)
+        return [NSString string];
+    
+    NSUInteger          dataLength  = [self length];
+    NSMutableString     *hexString  = [NSMutableString stringWithCapacity:(dataLength * 2)];
+    
+    for (int i = 0; i < dataLength; ++i)
+        [hexString appendString:[NSString stringWithFormat:@"%02lx", (unsigned long)dataBuffer[i]]];
+    
+    return [NSString stringWithString:hexString];
+}
+
+@end
 //
 //  BitsharesPlugin.m
 //  Bitwallet
@@ -80,19 +108,28 @@
         return FALSE;
     }
     
+//    var data = bs58.decode(addy.substr(3))
+//    if(data.length != 24) return false;
+//    var c1 = data.slice(20);
+//    var c2 = ripemd160(data.slice(0,20)).slice(0,4);
+//    return (c1[0] == c2[0] && c1[1] == c2[1] && c1[	2] == c2[2] && c1[3] == c2[3]);
+    
+    NSLog(@" #-- substring [%@] -> [%@]", addy, [addy substringFromIndex:3]);
     NSMutableData *data = BTCDataFromBase58([addy substringFromIndex:3]);
     if (data.length != 24) {
         return FALSE;
     }
     
-    NSData *c1 = [data subdataWithRange:NSMakeRange(0, 20)];
-    NSData *ripData = BTCRIPEMD160(c1);
+    NSData *c1 = [data subdataWithRange:NSMakeRange(20, 4)];
+    NSData *ripData = BTCRIPEMD160([data subdataWithRange:NSMakeRange(0, 20)]);
     NSData *c2 = [ripData subdataWithRange:NSMakeRange(0, 4)];
     
+    NSLog(@" #-- is_valid_bts_address_impl comparing [%@] [%@]", [c1 hexadecimalString], [c2 hexadecimalString]);
+
     const unsigned char *p1 = [c1 bytes];
     const unsigned char *p2 = [c2 bytes];
     
-    if(!((p1[0] == p2[0] && p1[1] == p2[1] && p1[2] == p2[2] && p1[3] == p2[3])))
+    if(!(p1[0] == p2[0] && p1[1] == p2[1] && p1[2] == p2[2] && p1[3] == p2[3]))
         return FALSE;
     
     return TRUE;
@@ -269,6 +306,7 @@
     }
     
     if (addy.length == 0) {
+        NSLog(@"#--btsIsValidAddress addy es una baba papa!!!!");
         NSDictionary *errDict = [ [NSDictionary alloc]
                                  initWithObjectsAndKeys :
                                  @"Unable to read address", @"messageData",
@@ -281,6 +319,8 @@
         return;    }
     
     BOOL is_valid = [self is_valid_bts_address_impl:addy];
+    
+    NSLog(@"#--btsIsValidAddress is_valid?: [%hhd]",is_valid);
     
     if(!is_valid)
     {

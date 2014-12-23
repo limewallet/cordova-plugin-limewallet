@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
         id="com.latincoin.BitsharesPlugin" version="0.0.1">
-    <name>Bitshares Plugin based on CoreBitcoin SDK for iOS</name>
-    <description>Bitshares Plugin based on CoreBitcoin SDK for iOS only</description>
+    <name>BitShares</name>
+    <description>Bitshares Plugin</description>
     <keywords>bitwallet,bitshares,corebitcoin</keywords>
-    <license>Apache 2.0</license>
+    <license>MIT</license>
     <!-- info>
         After plugin installation please add "$(SRCROOT)/../../plugins/com.latincoin.BitsharesPlugin/src/ios/includes" to Build Settings (Combined view mode) -> Header Search Paths        
     </info -->
