@@ -44,11 +44,11 @@
         <source-file src="src/ios/src/RNCryptor/RNEncryptor.m" />
 
         <header-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLCryptor.h" />
-        <header-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLCryptor.m" />
+        <source-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLCryptor.m" />
         <header-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLDecryptor.h" />
-        <header-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLDecryptor.m" />
+        <source-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLDecryptor.m" />
         <header-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLEncryptor.h" />
-        <header-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLEncryptor.m" />
+        <source-file src="src/ios/src/RNOpenSSLCryptor/RNOpenSSLEncryptor.m" />
 
         <framework src="Foundation.framework" />
         <framework src="AVFoundation.framework" />
