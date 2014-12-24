@@ -1,4 +1,3 @@
-
 //cordova.define("com.latincoin.BitsharesPlugin.BitsharesPlugin", function(require, exports, module) {
   var cordova = require('cordova');
   function BitsharesPlugin() {}
@@ -51,6 +50,10 @@
   BitsharesPlugin.prototype.btsIsValidAddress = function (successCB, errorCB, addy) {
    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'btsIsValidAddress', [{"addy": addy}]);
   };
+
+  BitsharesPlugin.prototype.btsIsValidPubkey = function (successCB, errorCB, pubkey) {
+   cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'btsIsValidPubkey', [{"pubkey": pubkey}]);
+  };
   
   BitsharesPlugin.install = function () {
     if (!window.plugins) {
@@ -62,6 +65,3 @@
    
   cordova.addConstructor(BitsharesPlugin.install);
 //});
-
-
-

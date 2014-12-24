@@ -88,9 +88,17 @@
     if (data.length != 37) {
         return FALSE;
     }
+    /*
+     if(pub_key.indexOf('BTSX') != 0) return false;
+     var data = bs58.decode(pub_key.substr(4))
+     if(data.length != 37) return false;
+     var c1 = data.slice(33);
+     var c2 = ripemd160(data.slice(0,33)).slice(0,4);
+     return (c1[0] == c2[0] && c1[1] == c2[1] && c1[2] == c2[2] && c1[3] == c2[3]); 
+     */
     
-    NSData *c1 = [data subdataWithRange:NSMakeRange(0, 33)];
-    NSData *ripData = BTCRIPEMD160(c1);
+    NSData *c1 = [data subdataWithRange:NSMakeRange(33, 4)];
+    NSData *ripData = BTCRIPEMD160([data subdataWithRange:NSMakeRange(0, 33)]);
     NSData *c2 = [ripData subdataWithRange:NSMakeRange(0, 4)];
     
     const unsigned char *p1 = [c1 bytes];
@@ -245,10 +253,11 @@
     }
     
     if (args) {
-        pubkey = [args valueForKey:@"addy"];
+        pubkey = [args valueForKey:@"pubkey"];
     }
     
     if (pubkey.length == 0) {
+        NSLog(@"#--btsIsValidPubkey pubkey is undefined");
         NSDictionary *errDict = [ [NSDictionary alloc]
                                  initWithObjectsAndKeys :
                                  @"Unable to read pubkey", @"messageData",
@@ -564,7 +573,7 @@
     if (wif.length == 0) {
         NSDictionary *errDict = [ [NSDictionary alloc]
                                  initWithObjectsAndKeys :
-                                 @"Unable to read key", @"messageData",
+                                 @"Unable to read Wif", @"messageData",
                                  nil
                                  ];
         CDVPluginResult *result = [ CDVPluginResult
@@ -572,14 +581,26 @@
                                    messageAsDictionary:errDict];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;    }
-    
+    BTCPrivateKeyAddress* addr;
     // Es asi, ver BTCKey
-    BTCPrivateKeyAddress* addr = [BTCPrivateKeyAddress addressWithBase58String:wif];
-    if (![addr isKindOfClass:[BTCPrivateKeyAddress class]])
+    @try {
+        addr = [BTCPrivateKeyAddress addressWithBase58String:wif];
+    }
+    @catch (NSException *exception) {
+        NSLog(@"#-- %@", exception.reason);
+        addr = nil;
+    }
+    @finally {
+//        NSLog(@"Char at index %d cannot be found", index);
+//        NSLog(@"Max index is: %d", [test length]-1);
+    }
+    
+    if (addr==nil || ![addr isKindOfClass:[BTCPrivateKeyAddress class]])
     {
+        NSLog(@"#-- Wif is not valid");
         NSDictionary *errDict = [ [NSDictionary alloc]
                                  initWithObjectsAndKeys :
-                                 @"Key is not valid", @"messageData",
+                                 @"Wif is not valid", @"messageData",
                                  nil
                                  ];
         CDVPluginResult *result = [ CDVPluginResult
@@ -588,6 +609,9 @@
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
+    
+    NSLog(@"#-- Wif IS VALID!!");
+
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
                              @"true", @"is_valid",
