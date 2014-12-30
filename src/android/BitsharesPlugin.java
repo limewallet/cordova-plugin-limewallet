@@ -22,6 +22,7 @@ import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.DumpedPrivateKey;
 import org.bitcoinj.core.Sha256Hash;
 import org.bitcoinj.core.AddressFormatException;
+import org.bitcoinj.crypto.ChildNumber;
 import org.bitcoinj.crypto.HDKeyDerivation;
 import org.bitcoinj.crypto.DeterministicKey;
 import org.bitcoinj.params.MainNetParams;
@@ -49,7 +50,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     DeterministicKey dk = HDKeyDerivation.createMasterPrivateKey( new SecureRandom().generateSeed(32) );
 
     JSONObject result = new JSONObject();
-    result.put("key", dk.serializePrivB58());
+    result.put("masterPrivateKey", dk.serializePrivB58());
     return result;
   }
 
@@ -130,9 +131,7 @@ public class BitsharesPlugin extends CordovaPlugin {
   }
 
   private JSONObject derivePrivate(String key, int deriv) throws JSONException {
-
-    DeterministicKey dk = DeterministicKey.deserializeB58(null, key).derive(deriv);
-
+    DeterministicKey dk = HDKeyDerivation.deriveChildKey(DeterministicKey.deserializeB58(null, key), new ChildNumber(deriv, false));
     JSONObject result = new JSONObject();
     result.put("extendedPrivateKey", dk.serializePrivB58());
     return result;
@@ -232,7 +231,9 @@ public class BitsharesPlugin extends CordovaPlugin {
   @Override
   public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
 
-    JSONObject params = args.getJSONObject(0);
+    JSONObject params = new JSONObject();
+    if(args.length() > 0)
+      params = args.getJSONObject(0);
 
     if (action.equals("createMasterKey")) {
       try {
@@ -284,7 +285,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("isValidWif")) {
       try {
-        callbackContext.success( isValidKey( params.getString("wif") ) );
+        callbackContext.success( isValidWif( params.getString("wif") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
