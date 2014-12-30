@@ -12,7 +12,7 @@
       <engine name="cordova" version=">=3.0.0" />
     </engines -->
     <js-module src="www/BitsharesPlugin.js" name="BitsharesPlugin">
-        <clobbers target="device" />
+        <clobbers target="window.plugins.BitsharesPlugin" />
     </js-module>
 
 
