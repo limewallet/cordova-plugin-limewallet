@@ -20,7 +20,13 @@
     <platform name="android">
       <source-file src="src/android/BitsharesPlugin.java" target-dir="src/com/latincoin/bitwallet" />
       <source-file src="src/android/Crypto.java" target-dir="src/de/schildbach/wallet/util" />
-      <source-file src="src/android/libs/bitcoinj-core-0.12-bundled.jar" target-dir="libs" />
+
+      <source-file src="src/android/libs/bitcoinj-core-0.12.2.jar" target-dir="libs" />
+      <source-file src="src/android/libs/core-1.51.0.0.jar" target-dir="libs" />
+      <source-file src="src/android/libs/guava-16.0.1.jar" target-dir="libs" />
+      <source-file src="src/android/libs/jsr305.jar" target-dir="libs" />
+      <source-file src="src/android/libs/orchid-1.0.jar" target-dir="libs" />
+
       <config-file target="config.xml" parent="/*">
           <feature name="BitsharesPlugin">
               <param name="android-package" value="com.latincoin.bitwallet.BitsharesPlugin"/>
