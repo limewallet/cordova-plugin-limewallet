@@ -192,7 +192,9 @@
 }
 
 -(NSString*) bts_wif_to_address_impl:(NSString*)wif{
-    return [self bts_pub_to_address_impl: [[BTCKey alloc] initWithWIF:wif].publicKey];
+    
+    //[[BTCKey alloc] initWithWIF:wif].compressedPublicKey
+    return [self bts_pub_to_address_impl: [[BTCKey alloc] initWithWIF:wif].compressedPublicKey];
 }
 
 -(NSString*) compactSignatureForHash_impl:(NSString*)hash wif:(NSString*)wif{
