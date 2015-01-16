@@ -39,6 +39,8 @@ import de.schildbach.wallet.util.Crypto;
 public class BitsharesPlugin extends CordovaPlugin {
 
   private NetworkParameters main = MainNetParams.get();
+  private static final String PROD_PREFIX = "BTS";
+  private static final String TEST_PREFIX = "DVS";
 
   @Override
   public void initialize(CordovaInterface cordova, CordovaWebView webView) {
@@ -46,7 +48,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     PRNGFixes.apply();
   }
 
-  private JSONObject createMasterKey() throws JSONException {
+  private JSONObject createMasterKey(Boolean test) throws JSONException {
     DeterministicKey dk = HDKeyDerivation.createMasterPrivateKey( new SecureRandom().generateSeed(32) );
 
     JSONObject result = new JSONObject();
@@ -70,25 +72,26 @@ public class BitsharesPlugin extends CordovaPlugin {
     return ret;
   }
 
-  private String bts_pub_to_address(byte[] pubkey) {
+  private String bts_pub_to_address(Boolean test, byte[] pubkey) {
     byte[] r = ripemd160( sha512(pubkey) );
     byte[] c = ripemd160( r );
     byte[] tmp = new byte[r.length+4];
     System.arraycopy(r, 0, tmp, 0, r.length);
     System.arraycopy(c, 0, tmp, r.length, 4);
-    return "BTS"+Base58.encode(tmp);
+    
+    return (test ? TEST_PREFIX : PROD_PREFIX) + Base58.encode(tmp);
   }
 
-  private String bts_encode_pubkey(byte[] pubkey) {
+  private String bts_encode_pubkey(Boolean test, byte[] pubkey) {
     byte[] r = ripemd160( pubkey );
     byte[] tmp = new byte[pubkey.length+4];
     System.arraycopy(pubkey, 0, tmp, 0, pubkey.length);
     System.arraycopy(r, 0, tmp, pubkey.length, 4);
-    return "BTS"+Base58.encode(tmp);
+    return (test ? TEST_PREFIX : PROD_PREFIX) + Base58.encode(tmp);
   }
 
-  private byte[] bts_decode_pubkey(String pubkey) throws Exception {
-    if(pubkey.indexOf("BTS") != 0) throw new Exception("invalid prefix");
+  private byte[] bts_decode_pubkey(Boolean test, String pubkey) throws Exception {
+    if(pubkey.indexOf(test ? TEST_PREFIX : PROD_PREFIX) != 0) throw new Exception("invalid prefix");
     byte[] data = Base58.decode(pubkey.substring(3));
     if(data.length != 37) throw new Exception("invalid length");
     byte[] c1 = Arrays.copyOfRange(data, 33, 37);
@@ -98,8 +101,8 @@ public class BitsharesPlugin extends CordovaPlugin {
     return pubkey_data;
   }
 
-  private Boolean bts_is_valid_address(String addy) throws Exception {
-    if(addy.indexOf("BTS") != 0) throw new Exception("invalid prefix");
+  private Boolean bts_is_valid_address(Boolean test, String addy) throws Exception {
+    if(addy.indexOf(test ? TEST_PREFIX : PROD_PREFIX) != 0) throw new Exception("invalid prefix");
     byte[] data = Base58.decode(addy.substring(3));
     if(data.length != 24) throw new Exception("invalid length");
     byte[] c1 = Arrays.copyOfRange(data, 20, 24);
@@ -108,19 +111,19 @@ public class BitsharesPlugin extends CordovaPlugin {
     return true;
   }
 
-  private JSONObject extractDataFromKey(String key) throws JSONException {
+  private JSONObject extractDataFromKey(Boolean test, String key) throws JSONException {
 
     DeterministicKey dk = DeterministicKey.deserializeB58(null, key);
     byte[] pubkey =  ECKey.publicKeyFromPrivate(dk.getPrivKey(), true);
 
     JSONObject result = new JSONObject();
-    result.put("address", bts_pub_to_address(pubkey));
-    result.put("pubkey" , bts_encode_pubkey(pubkey));
+    result.put("address", bts_pub_to_address(test, pubkey));
+    result.put("pubkey" , bts_encode_pubkey(test, pubkey));
     result.put("privkey", dk.getPrivateKeyEncoded(main));
     return result;
   }
 
-  private JSONObject extendedPublicFromPrivate(String key) throws JSONException {
+  private JSONObject extendedPublicFromPrivate(Boolean test, String key) throws JSONException {
 
     DeterministicKey dk = DeterministicKey.deserializeB58(null, key);
 
@@ -130,7 +133,7 @@ public class BitsharesPlugin extends CordovaPlugin {
 
   }
 
-  private JSONObject derivePrivate(String key, int deriv) throws JSONException {
+  private JSONObject derivePrivate(Boolean test, String key, int deriv) throws JSONException {
     DeterministicKey dk = HDKeyDerivation.deriveChildKey(DeterministicKey.deserializeB58(null, key), new ChildNumber(deriv, false));
     JSONObject result = new JSONObject();
     result.put("extendedPrivateKey", dk.serializePrivB58());
@@ -162,7 +165,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     return sigData;
   }
   
-  private JSONObject compactSignatureForHash(String Wif, String hash) throws UnsupportedEncodingException, AddressFormatException, JSONException {
+  private JSONObject compactSignatureForHash(Boolean test, String Wif, String hash) throws UnsupportedEncodingException, AddressFormatException, JSONException {
     ECKey key = new DumpedPrivateKey(null, Wif).getKey();
     byte[] signature = compactSing(new Sha256Hash(hash), key);
     JSONObject result = new JSONObject();
@@ -170,59 +173,59 @@ public class BitsharesPlugin extends CordovaPlugin {
     return result;
   }
 
-  private JSONObject isValidKey(String key) throws JSONException {
+  private JSONObject isValidKey(Boolean test, String key) throws JSONException {
     DeterministicKey dk = DeterministicKey.deserializeB58(null, key);
     JSONObject result = new JSONObject();
     result.put("is_valid", "true");
     return result;
   }
 
-  private JSONObject isValidWif(String wif) throws JSONException, AddressFormatException {
+  private JSONObject isValidWif(Boolean test, String wif) throws JSONException, AddressFormatException {
     ECKey key = new DumpedPrivateKey(null, wif).getKey();
     JSONObject result = new JSONObject();
     result.put("is_valid", "true");
     return result;
   }
 
-  private JSONObject btsWifToAddress(String wif) throws JSONException, AddressFormatException {
+  private JSONObject btsWifToAddress(Boolean test, String wif) throws JSONException, AddressFormatException {
     ECKey key = new DumpedPrivateKey(null, wif).getKey();
     byte[] pubkey =  ECKey.publicKeyFromPrivate(key.getPrivKey(), true);
 
     JSONObject result = new JSONObject();
-    result.put("addy", bts_pub_to_address(pubkey));
+    result.put("addy", bts_pub_to_address(test, pubkey));
     return result;
   }
 
-  private JSONObject btsPubToAddress(String pubkey) throws JSONException, Exception {
-    String addy = bts_pub_to_address( bts_decode_pubkey(pubkey) );
+  private JSONObject btsPubToAddress(Boolean test, String pubkey) throws JSONException, Exception {
+    String addy = bts_pub_to_address( test, bts_decode_pubkey(test, pubkey) );
     JSONObject result = new JSONObject();
     result.put("addy", addy);
     return result;
   } 
 
-  private JSONObject btsIsValidAddress(String addy) throws JSONException, Exception {
-    bts_is_valid_address( addy );
+  private JSONObject btsIsValidAddress(Boolean test, String addy) throws JSONException, Exception {
+    bts_is_valid_address( test, addy );
     JSONObject result = new JSONObject();
     result.put("is_valid", "true");
     return result;
   }
 
-  private JSONObject btsIsValidPubkey(String pubkey) throws JSONException, Exception {
-    byte[] pub = bts_decode_pubkey(pubkey);
+  private JSONObject btsIsValidPubkey(Boolean test, String pubkey) throws JSONException, Exception {
+    byte[] pub = bts_decode_pubkey(test, pubkey);
     JSONObject result = new JSONObject();
     result.put("is_valid", "true");
     return result;
   }
 
-  private JSONObject encryptString(String data, String password) throws JSONException, IOException {
-    String encryptedData = Crypto.encrypt(data, password.toCharArray());
+  private JSONObject encryptString(Boolean test, String data, String password) throws JSONException, IOException {
+    String encryptedData = Crypto.encrypt(data, password.toCharArray()).replaceAll("\n", "");
     JSONObject result = new JSONObject();
     result.put("encryptedData", encryptedData);
     return result;
   }
 
-  private JSONObject decryptString(String data, String password) throws JSONException, IOException {
-    String decryptedData = Crypto.decrypt(data, password.toCharArray());
+  private JSONObject decryptString(Boolean test, String data, String password) throws JSONException, IOException {
+    String decryptedData = Crypto.decrypt(data.replaceAll("\n",""), password.toCharArray());
     JSONObject result = new JSONObject();
     result.put("decryptedData", decryptedData);
     return result;
@@ -237,7 +240,7 @@ public class BitsharesPlugin extends CordovaPlugin {
 
     if (action.equals("createMasterKey")) {
       try {
-        callbackContext.success( createMasterKey() );
+        callbackContext.success( createMasterKey(params.getBoolean("test")) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -245,7 +248,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else 
     if (action.equals("extractDataFromKey")) {
       try {
-        callbackContext.success( extractDataFromKey( params.getString("key") ) );
+        callbackContext.success( extractDataFromKey( params.getBoolean("test"), params.getString("key") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -253,7 +256,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("extendedPublicFromPrivate")) {
       try {
-        callbackContext.success( extendedPublicFromPrivate( params.getString("key") ) );
+        callbackContext.success( extendedPublicFromPrivate( params.getBoolean("test"), params.getString("key") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -261,7 +264,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("derivePrivate")) {
       try {
-        callbackContext.success( derivePrivate( params.getString("key"), params.getInt("deriv") ) );
+        callbackContext.success( derivePrivate( params.getBoolean("test"), params.getString("key"), params.getInt("deriv") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -269,7 +272,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("compactSignatureForHash")) {
       try {
-        callbackContext.success( compactSignatureForHash( params.getString("wif"), params.getString("hash") ) );
+        callbackContext.success( compactSignatureForHash( params.getBoolean("test"), params.getString("wif"), params.getString("hash") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -277,7 +280,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("isValidKey")) {
       try {
-        callbackContext.success( isValidKey( params.getString("key") ) );
+        callbackContext.success( isValidKey( params.getBoolean("test"), params.getString("key") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -285,7 +288,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("isValidWif")) {
       try {
-        callbackContext.success( isValidWif( params.getString("wif") ) );
+        callbackContext.success( isValidWif( params.getBoolean("test"), params.getString("wif") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -293,7 +296,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("btsWifToAddress")) {
       try {
-        callbackContext.success( btsWifToAddress( params.getString("wif") ) );
+        callbackContext.success( btsWifToAddress( params.getBoolean("test"), params.getString("wif") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -301,7 +304,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("btsPubToAddress")) {
       try {
-        callbackContext.success( btsPubToAddress( params.getString("pubkey") ) );
+        callbackContext.success( btsPubToAddress( params.getBoolean("test"), params.getString("pubkey") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -309,7 +312,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("btsIsValidAddress")) {
       try {
-        callbackContext.success( btsIsValidAddress( params.getString("addy") ) );
+        callbackContext.success( btsIsValidAddress( params.getBoolean("test"), params.getString("addy") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -317,7 +320,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("btsIsValidPubkey")) {
       try {
-        callbackContext.success( btsIsValidPubkey( params.getString("pubkey") ) );
+        callbackContext.success( btsIsValidPubkey( params.getBoolean("test"), params.getString("pubkey") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -325,7 +328,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("encryptString")) {
       try {
-        callbackContext.success( encryptString( params.getString("data"), params.getString("password") ) );
+        callbackContext.success( encryptString( params.getBoolean("test"), params.getString("data"), params.getString("password") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -333,17 +336,12 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("decryptString")) {
       try {
-        callbackContext.success( decryptString( params.getString("data"), params.getString("password") ) );
+        callbackContext.success( decryptString( params.getBoolean("test"), params.getString("data"), params.getString("password") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
       }
     }
-
-
-
-
-
 
     return false;
   }
