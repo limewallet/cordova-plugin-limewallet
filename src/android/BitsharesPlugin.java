@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.io.UnsupportedEncodingException;
 import java.io.IOException;
 import java.security.SecureRandom;
+import java.math.BigInteger;
 
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.PluginResult;
@@ -173,6 +174,28 @@ public class BitsharesPlugin extends CordovaPlugin {
     return result;
   }
 
+  private JSONObject compactSignatureForMessage(Boolean test, String Wif, String msg) throws UnsupportedEncodingException, AddressFormatException, JSONException {
+    String hash = new String(Hex.encode(Sha256Hash.create(msg.getBytes()).getBytes()), "UTF-8");
+    return compactSignatureForHash(test, Wif, hash);
+  }
+
+  private JSONObject recoverPubkey(Boolean test, String signature, String msg) throws UnsupportedEncodingException, AddressFormatException, JSONException {
+    byte[] sig_bytes = Hex.decode(signature);
+
+    int recId = (int)sig_bytes[0];
+    recId -= 27; recId &= 3;
+
+    Sha256Hash hash = Sha256Hash.create(msg.getBytes());
+
+    BigInteger r = new BigInteger(Arrays.copyOfRange(sig_bytes, 1,  33));
+    BigInteger s = new BigInteger(Arrays.copyOfRange(sig_bytes, 33, 65));
+    ECKey key = ECKey.recoverFromSignature(recId, new ECKey.ECDSASignature(r,s), hash, true);
+
+    JSONObject result = new JSONObject();
+    result.put("pubKey", key != null ? bts_encode_pubkey(test, key.getPubKey()) : "<null>");
+    return result;
+  }
+
   private JSONObject isValidKey(Boolean test, String key) throws JSONException {
     DeterministicKey dk = DeterministicKey.deserializeB58(null, key);
     JSONObject result = new JSONObject();
@@ -273,6 +296,22 @@ public class BitsharesPlugin extends CordovaPlugin {
     if (action.equals("compactSignatureForHash")) {
       try {
         callbackContext.success( compactSignatureForHash( params.getBoolean("test"), params.getString("wif"), params.getString("hash") ) );
+        return true;
+      } catch (Exception e) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
+      }
+    } else
+    if (action.equals("compactSignatureForMessage")) {
+      try {
+        callbackContext.success( compactSignatureForMessage( params.getBoolean("test"), params.getString("wif"), params.getString("msg") ) );
+        return true;
+      } catch (Exception e) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
+      }
+    } else
+    if (action.equals("recoverPubkey")) {
+      try {
+        callbackContext.success( recoverPubkey( params.getBoolean("test"), params.getString("signature"), params.getString("msg") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
