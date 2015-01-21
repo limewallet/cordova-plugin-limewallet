@@ -1,4 +1,4 @@
-//cordova.define("com.latincoin.BitsharesPlugin.BitsharesPlugin", function(require, exports, module) {
+cordova.define("com.latincoin.BitsharesPlugin.BitsharesPlugin", function(require, exports, module) { //cordova.define("com.latincoin.BitsharesPlugin.BitsharesPlugin", function(require, exports, module) {
   var cordova = require('cordova');
   var is_test = true;
   function BitsharesPlugin() {}
@@ -43,6 +43,14 @@
    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'compactSignatureForHash', [{'test':is_test, "hash": hash, "wif": wif}]);
   };
 
+  BitsharesPlugin.prototype.compactSignatureForMessage = function (successCB, errorCB, msg, wif) {
+   cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'compactSignatureForMessage', [{'test':is_test, "msg": msg, "wif": wif}]);
+  };
+
+  BitsharesPlugin.prototype.recoverPubkey = function (successCB, errorCB, msg, signature) {
+   cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'recoverPubkey', [{'test':is_test, "msg": msg, "signature": signature}]);
+  };
+
   BitsharesPlugin.prototype.btsWifToAddress = function (successCB, errorCB, wif) {
    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'btsWifToAddress', [{'test':is_test, "wif": wif}]);
   };
@@ -69,3 +77,5 @@
    
   cordova.addConstructor(BitsharesPlugin.install);
 //});
+
+});
