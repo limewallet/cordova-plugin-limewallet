@@ -1,4 +1,4 @@
-cordova.define("com.latincoin.BitsharesPlugin.BitsharesPlugin", function(require, exports, module) { //cordova.define("com.latincoin.BitsharesPlugin.BitsharesPlugin", function(require, exports, module) {
+ //cordova.define("com.latincoin.BitsharesPlugin.BitsharesPlugin", function(require, exports, module) {
   var cordova = require('cordova');
   var is_test = true;
   function BitsharesPlugin() {}
@@ -77,5 +77,3 @@ cordova.define("com.latincoin.BitsharesPlugin.BitsharesPlugin", function(require
    
   cordova.addConstructor(BitsharesPlugin.install);
 //});
-
-});
