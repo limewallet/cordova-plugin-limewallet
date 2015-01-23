@@ -31,4 +31,7 @@
 -(void) btsIsValidAddress:(CDVInvokedUrlCommand*)command;
 -(void) btsIsValidPubkey:(CDVInvokedUrlCommand*)command;
 
+-(void) compactSignatureForMessage:(CDVInvokedUrlCommand*)command;
+-(void) recoverPubkey:(CDVInvokedUrlCommand*)command;
+
 @end

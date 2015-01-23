@@ -62,9 +62,12 @@
 #include <openssl/evp.h>
 #endif
 
+NSString * const PROD_PREFIX = @"BTS";
+NSString * const TEST_PREFIX = @"DVS";
 
 @implementation BitsharesPlugin
 @synthesize callbackID;
+
 
 // Utils
 -(NSMutableData*) BTCSHA512:(NSData*)data
@@ -78,9 +81,20 @@
     return result;
 }
 
--(BOOL) is_valid_bts_pubkey_impl:(NSString*)pubkey{
+-(NSMutableData*) BTCSHA256:(NSData*) data
+{
+    if (!data) return nil;
+    unsigned char digest[CC_SHA256_DIGEST_LENGTH];
+    CC_SHA256([data bytes], (CC_LONG)[data length], digest);
     
-    if (![pubkey hasPrefix:@"BTS"]) {
+    NSMutableData* result = [NSMutableData dataWithBytes:digest length:CC_SHA256_DIGEST_LENGTH];
+    BTCSecureMemset(digest, 0, CC_SHA256_DIGEST_LENGTH);
+    return result;
+}
+
+-(BOOL) is_valid_bts_pubkey_impl:(NSString*)pubkey with_test:(BOOL)is_test{
+    
+    if (![pubkey hasPrefix:(is_test?TEST_PREFIX:PROD_PREFIX)]) {
         return FALSE;
     }
     
@@ -110,9 +124,9 @@
     return TRUE;
 }
 
--(BOOL) is_valid_bts_address_impl:(NSString*)addy{
+-(BOOL) is_valid_bts_address_impl:(NSString*)addy with_test:(BOOL)is_test{
     
-    if (![addy hasPrefix:@"BTS"]) {
+    if (![addy hasPrefix:(is_test?TEST_PREFIX:PROD_PREFIX)]) {
         return FALSE;
     }
     
@@ -143,33 +157,35 @@
     return TRUE;
 }
 
--(NSString*) bts_pub_to_address_impl:(NSData*)pubkey{
+-(NSString*) bts_pub_to_address_impl:(NSData*)pubkey with_test:(BOOL)is_test{
 
     NSMutableData *r = BTCRIPEMD160( [self BTCSHA512:pubkey] );
     NSData *c = BTCRIPEMD160(r);
 
     [r appendBytes:c.bytes length:4];
     
-    NSString * addy = [[NSString alloc] initWithFormat:@"BTS%@",   BTCBase58StringWithData(r)];
+    NSString * addy = [[NSString alloc] initWithFormat:@"%@%@",  (is_test?TEST_PREFIX:PROD_PREFIX), BTCBase58StringWithData(r)];
     
     return addy;
     
 }
 
--(NSString*) bts_encode_pub_key:(NSData*)pubkey{
+-(NSString*) bts_encode_pub_key:(NSData*)pubkey with_test:(BOOL)is_test{
     
     NSMutableData *tmp = [[NSMutableData alloc] initWithBytes:pubkey.bytes length:pubkey.length];
     NSMutableData *r = BTCRIPEMD160(pubkey);
     
     [tmp appendBytes:r.bytes length:4];
-    NSString * epub = [[NSString alloc] initWithFormat:@"BTS%@",   BTCBase58StringWithData(tmp)];
+    NSString * epub = [[NSString alloc] initWithFormat:@"%@%@",  (is_test?TEST_PREFIX:PROD_PREFIX), BTCBase58StringWithData(tmp)];
     return epub;
+    
+    
 }
 
--(NSData*) bts_decode_pub_key:(NSString*)epub{
+-(NSData*) bts_decode_pub_key:(NSString*)epub with_test:(BOOL)is_test{
     
-    if (![epub hasPrefix:@"BTS"]) {
-        return nil;
+    if (![epub hasPrefix:(is_test?TEST_PREFIX:PROD_PREFIX)]) {
+        return FALSE;
     }
     
     NSMutableData *data = BTCDataFromBase58([epub substringFromIndex:3]);
@@ -191,10 +207,10 @@
     return pubkey_data;
 }
 
--(NSString*) bts_wif_to_address_impl:(NSString*)wif{
+-(NSString*) bts_wif_to_address_impl:(NSString*)wif with_test:(BOOL)is_test{
     
     //[[BTCKey alloc] initWithWIF:wif].compressedPublicKey
-    return [self bts_pub_to_address_impl: [[BTCKey alloc] initWithWIF:wif].compressedPublicKey];
+    return [self bts_pub_to_address_impl: [[BTCKey alloc] initWithWIF:wif].compressedPublicKey with_test:is_test];
 }
 
 -(NSString*) compactSignatureForHash_impl:(NSString*)hash wif:(NSString*)wif{
@@ -249,13 +265,14 @@
     NSLog(@"#--btsIsValidPubkey");
     NSDictionary* args;
     NSString *pubkey = @"";
-    
+    BOOL is_test = FALSE;
     if ([command.arguments count] > 0) {
         args = [command.arguments objectAtIndex:0];
     }
     
     if (args) {
         pubkey = [args valueForKey:@"pubkey"];
+        is_test = (BOOL)[args valueForKey:@"test"];
     }
     
     if (pubkey.length == 0) {
@@ -272,7 +289,7 @@
         return;
     }
     
-    BOOL is_valid = [self is_valid_bts_pubkey_impl:pubkey];
+    BOOL is_valid = [self is_valid_bts_pubkey_impl:pubkey with_test:is_test];
     
     if(!is_valid)
     {
@@ -307,13 +324,15 @@
     NSLog(@"#--btsIsValidAddress");
     NSDictionary* args;
     NSString *addy = @"";
-    
+    BOOL is_test = FALSE;
+
     if ([command.arguments count] > 0) {
         args = [command.arguments objectAtIndex:0];
     }
     
     if (args) {
         addy = [args valueForKey:@"addy"];
+        is_test = (BOOL)[args valueForKey:@"test"];
     }
     
     if (addy.length == 0) {
@@ -329,9 +348,9 @@
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;    }
     
-    BOOL is_valid = [self is_valid_bts_address_impl:addy];
+    BOOL is_valid = [self is_valid_bts_address_impl:addy with_test:is_test];
     
-    NSLog(@"#--btsIsValidAddress is_valid?: [%hhd]",is_valid);
+    //NSLog(@"#--btsIsValidAddress is_valid?: [%hhd]",is_valid);
     
     if(!is_valid)
     {
@@ -365,13 +384,15 @@
     NSLog(@"#--btsPubToAddress");
     NSDictionary* args;
     NSString *pubkey = @"";
-        
+    BOOL is_test = FALSE;
+
     if ([command.arguments count] > 0) {
         args = [command.arguments objectAtIndex:0];
     }
         
     if (args) {
         pubkey = [args valueForKey:@"pubkey"];
+        is_test = (BOOL)[args valueForKey:@"test"];
     }
         
     if (pubkey.length == 0) {
@@ -388,7 +409,7 @@
     }
     
     NSData *data = [pubkey dataUsingEncoding:NSUTF8StringEncoding];
-    NSString* addy = [self bts_pub_to_address_impl:data];
+    NSString* addy = [self bts_pub_to_address_impl:data with_test:is_test];
     
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                                 initWithObjectsAndKeys :
@@ -409,13 +430,15 @@
     NSLog(@"#--btsWifToAddress");
     NSDictionary* args;
     NSString *wif = @"";
-    
+    BOOL is_test = FALSE;
+
     if ([command.arguments count] > 0) {
         args = [command.arguments objectAtIndex:0];
     }
     
     if (args) {
         wif = [args valueForKey:@"wif"];
+        is_test = (BOOL)[args valueForKey:@"test"];
     }
     
     if (wif.length == 0) {
@@ -430,7 +453,7 @@
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         return;
     }
-    NSString* addy = [self bts_wif_to_address_impl:wif];
+    NSString* addy = [self bts_wif_to_address_impl:wif with_test:is_test];
     
     NSDictionary *jsonObj = [ [NSDictionary alloc]
                              initWithObjectsAndKeys :
@@ -801,13 +824,15 @@
     NSLog(@"#--extractDataFromKey");
     NSDictionary* args;
     NSString *extendedKey = @"";
-    
+    BOOL is_test = FALSE;
+
     if ([command.arguments count] > 0) {
         args = [command.arguments objectAtIndex:0];
     }
 
     if (args) {
         extendedKey = [args valueForKey:@"key"];
+        is_test = (BOOL)[args valueForKey:@"test"];
     }
 
     if (extendedKey.length == 0) {
@@ -828,8 +853,8 @@
     
     NSData* pubKey  = eKey.publicKeychain.key.publicKey;
 
-    NSString *addy       = [self bts_pub_to_address_impl:pubKey];
-    NSString *strPubKey  = [self bts_encode_pub_key:pubKey];
+    NSString *addy       = [self bts_pub_to_address_impl:pubKey with_test:is_test];
+    NSString *strPubKey  = [self bts_encode_pub_key:pubKey with_test:is_test];
     NSString *strPrivKey = [[BTCKeychain alloc] initWithExtendedKey:eKey.extendedPrivateKey].key.WIF;
     
     NSDictionary *jsonObj = [ [NSDictionary alloc]
@@ -899,6 +924,111 @@
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
+-(void) compactSignatureForMessage:(CDVInvokedUrlCommand*)command{
+    NSDictionary* args;
+    NSString *wif = @"";
+    NSString *msg = @"";
+    BOOL is_test = FALSE;
+    
+    if ([command.arguments count] > 0) {
+        args = [command.arguments objectAtIndex:0];
+    }
+    
+    if (args) {
+        wif = [args valueForKey:@"wif"];
+        msg = [args valueForKey:@"msg"];
+        is_test = (BOOL)[args valueForKey:@"test"];
+    }
+    
+    if (wif.length == 0 || msg.length==0) {
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to read key and or message", @"messageData",
+                                 nil
+                                 ];
+        CDVPluginResult *result = [ CDVPluginResult
+                                   resultWithStatus:CDVCommandStatus_ERROR
+                                   messageAsDictionary:errDict];
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        return;
+    }
+    
+    NSData *msg_data = [msg dataUsingEncoding:NSUTF8StringEncoding];
+    //NSString *msg_hash = [(NSData*)[self BTCSHA256:msg_data] hexadecimalString];
+    NSString *msg_hash = [self compactSignatureForHash_impl:BTCHexStringFromData([self BTCSHA256:msg_data]) wif:wif];
+    
+    NSDictionary *jsonObj = [ [NSDictionary alloc]
+                             initWithObjectsAndKeys :
+                             msg_hash, @"compactSignatureForHash",
+                             nil
+                             ];
+    
+    CDVPluginResult *pluginResult = [ CDVPluginResult
+                                     resultWithStatus    : CDVCommandStatus_OK
+                                     messageAsDictionary : jsonObj
+                                     ];
+    
+    
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
+-(void) recoverPubkey:(CDVInvokedUrlCommand*)command{
+    NSDictionary* args;
+    NSString *signature = @"";
+    NSString *msg = @"";
+    BOOL is_test = FALSE;
+    
+    if ([command.arguments count] > 0) {
+        args = [command.arguments objectAtIndex:0];
+    }
+    
+    if (args) {
+        signature = [args valueForKey:@"signature"];
+        msg = [args valueForKey:@"msg"];
+        is_test = (BOOL)[args valueForKey:@"test"];
+    }
+    
+    if (signature.length == 0 || msg.length==0) {
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Unable to read signature and or message", @"messageData",
+                                 nil
+                                 ];
+        CDVPluginResult *result = [ CDVPluginResult
+                                   resultWithStatus:CDVCommandStatus_ERROR
+                                   messageAsDictionary:errDict];
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        return;
+    }
+    
+    NSData *msg_data = [msg dataUsingEncoding:NSUTF8StringEncoding];
+    NSData *signature_data = BTCDataWithHexString(signature);
+    
+    //return BTCHexStringFromData( [key compactSignatureForHash:BTCDataWithHexString(hash)] );
+
+    
+    BTCKey* key = [BTCKey verifyCompactSignature:signature_data forHash:[self BTCSHA256:msg_data]];
+    
+    NSString * pubkey = @"<null>";
+    if(key!=nil)
+    {
+        pubkey = [self bts_encode_pub_key:[key compressedPublicKey] with_test:is_test];
+        //pubkey = [self bts_encode_pub_key:[key publicKey] with_test:is_test];
+    }
+    NSDictionary *jsonObj = [ [NSDictionary alloc]
+                             initWithObjectsAndKeys :
+                             pubkey, @"pubKey",
+                             nil
+                             ];
+    
+    CDVPluginResult *pluginResult = [ CDVPluginResult
+                                     resultWithStatus    : CDVCommandStatus_OK
+                                     messageAsDictionary : jsonObj
+                                     ];
+    
+    
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
 @end
 
 
