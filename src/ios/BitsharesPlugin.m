@@ -156,6 +156,30 @@ NSString * const TEST_PREFIX = @"DVS";
     
     return TRUE;
 }
+// #define BTCPublicKeyAddressLength 20
+-(BOOL) is_valid_btc_address_impl:(NSString*)addy with_test:(BOOL)is_test{
+    
+    if(is_test){
+        const char* cstring =[addy cStringUsingEncoding:NSASCIIStringEncoding];
+        NSMutableData* composedData = BTCDataFromBase58CheckCString(cstring);
+        if (!composedData) return FALSE;
+        if (composedData.length < 2) return FALSE;
+        
+        int version = ((unsigned char*)composedData.bytes)[0];
+        
+        if (version != 27 || composedData.length != (1 + 20))
+        {
+            NSLog(@"is_valid_btc_address_impl:  %d bytes (need 20+1 bytes); version: %d", (int)composedData.length, version);
+            return FALSE;
+        }
+        return TRUE;
+    }
+    
+    BTCPublicKeyAddress* addr = [BTCPublicKeyAddress addressWithBase58String:addy];
+    if (addr==nil || ![addr isKindOfClass:[BTCPublicKeyAddress class]])
+        return FALSE;
+    return TRUE;
+}
 
 -(NSString*) bts_pub_to_address_impl:(NSData*)pubkey with_test:(BOOL)is_test{
 
@@ -1029,6 +1053,68 @@ NSString * const TEST_PREFIX = @"DVS";
     
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
+
+-(void) btcIsValidAddress:(CDVInvokedUrlCommand*)command{
+    NSLog(@"#--btcIsValidAddress");
+    NSDictionary* args;
+    NSString *addy = @"";
+    BOOL is_test = FALSE; // 'B' or 'C' (0x1B) 27
+
+    if ([command.arguments count] > 0) {
+        args = [command.arguments objectAtIndex:0];
+    }
+    
+    if (args) {
+        addy = [args valueForKey:@"addy"];
+        is_test = (BOOL)[args valueForKey:@"test"];
+    }
+        
+    if (addy.length == 0) {
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                    initWithObjectsAndKeys :
+                                    @"Unable to red addy", @"messageData",
+                                    nil
+                                    ];
+        CDVPluginResult *result = [ CDVPluginResult
+                                    resultWithStatus:CDVCommandStatus_ERROR
+                                    messageAsDictionary:errDict];
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        return;
+    }
+    
+    BOOL is_valid = [self is_valid_btc_address_impl:addy with_test:is_test];
+    
+    //NSLog(@"#--btsIsValidAddress is_valid?: [%hhd]",is_valid);
+    
+    if(!is_valid)
+    {
+        NSDictionary *errDict = [ [NSDictionary alloc]
+                                 initWithObjectsAndKeys :
+                                 @"Invalid address", @"messageData",
+                                 nil
+                                 ];
+        CDVPluginResult *result = [ CDVPluginResult
+                                   resultWithStatus:CDVCommandStatus_ERROR
+                                   messageAsDictionary:errDict];
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        return;
+    }
+    
+    NSDictionary *jsonObj = [ [NSDictionary alloc]
+                             initWithObjectsAndKeys :
+                             @"true", @"is_valid",
+                             nil
+                             ];
+    CDVPluginResult *pluginResult = [ CDVPluginResult
+                                     resultWithStatus    : CDVCommandStatus_OK
+                                     messageAsDictionary : jsonObj
+                                     ];
+    
+    
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    
+    
+    }
 @end
 
 

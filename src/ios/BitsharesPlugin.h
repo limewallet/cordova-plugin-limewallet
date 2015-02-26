@@ -34,4 +34,6 @@
 -(void) compactSignatureForMessage:(CDVInvokedUrlCommand*)command;
 -(void) recoverPubkey:(CDVInvokedUrlCommand*)command;
 
+-(void) btcIsValidAddress:(CDVInvokedUrlCommand*)command;
+
 @end
