@@ -29,8 +29,11 @@ import org.bitcoinj.crypto.DeterministicKey;
 import org.bitcoinj.params.MainNetParams;
 
 import org.spongycastle.math.ec.ECPoint;
+import org.spongycastle.crypto.macs.HMac;
 import org.spongycastle.crypto.digests.SHA512Digest;
+import org.spongycastle.crypto.digests.SHA256Digest;
 import org.spongycastle.crypto.digests.RIPEMD160Digest;
+import org.spongycastle.crypto.params.KeyParameter;
 
 import com.subgraph.orchid.crypto.PRNGFixes;
 import com.subgraph.orchid.encoders.Hex;
@@ -63,6 +66,25 @@ public class BitsharesPlugin extends CordovaPlugin {
     byte[] ret = new byte[digest.getDigestSize()];
     digest.doFinal(ret, 0);
     return ret;
+  }
+
+  private HMac createHmacSha256Digest(byte[] key) {
+    SHA256Digest digest = new SHA256Digest();
+    HMac hMac = new HMac(digest);
+    hMac.init(new KeyParameter(key));
+    return hMac;
+  }
+
+  private byte[] hmacSha256(HMac hmacSha256, byte[] input) {
+    hmacSha256.reset();
+    hmacSha256.update(input, 0, input.length);
+    byte[] out = new byte[32];
+    hmacSha256.doFinal(out, 0);
+    return out;
+  }
+
+  private byte[] hmacSha256(byte[] key, byte[] data) {
+    return hmacSha256(createHmacSha256Digest(key), data);
   }
 
   private byte[] ripemd160(byte[] bytes) {
@@ -254,6 +276,14 @@ public class BitsharesPlugin extends CordovaPlugin {
     return result;
   }
 
+  private JSONObject requestSignature(String key, String nonce, String url, String body) throws JSONException, IOException {
+    JSONObject result = new JSONObject();
+    String tmp = nonce + url + body;
+    byte[] signature = hmacSha256(key.getBytes(), tmp.getBytes());
+    result.put("signature", new String(Hex.encode(signature), "UTF-8"));
+    return result;
+  }
+
   @Override
   public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
 
@@ -376,6 +406,14 @@ public class BitsharesPlugin extends CordovaPlugin {
     if (action.equals("decryptString")) {
       try {
         callbackContext.success( decryptString( params.getBoolean("test"), params.getString("data"), params.getString("password") ) );
+        return true;
+      } catch (Exception e) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
+      }
+    } else
+    if (action.equals("requestSignature")) {
+      try {
+        callbackContext.success( requestSignature( params.getString("key"), params.getString("nonce"), params.getString("url"), params.getString("body") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));

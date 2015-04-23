@@ -71,6 +71,10 @@
   BitsharesPlugin.prototype.btcIsValidAddress = function (successCB, errorCB, addy) {
     cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'btcIsValidAddress', [{'test':is_test, "addy": addy}]);
   };
+
+  BitsharesPlugin.prototype.requestSignature = function (successCB, errorCB, key, nonce, url, body) {
+    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'requestSignature', [{'key':key, "none": nonce, "url":url, "body":body}]);
+  };
   
   BitsharesPlugin.install = function () {
     if (!window.plugins) {
