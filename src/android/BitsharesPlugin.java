@@ -12,6 +12,8 @@ import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaWebView;
 
+import com.google.common.base.Joiner;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONException;
@@ -26,6 +28,7 @@ import org.bitcoinj.core.AddressFormatException;
 import org.bitcoinj.crypto.ChildNumber;
 import org.bitcoinj.crypto.HDKeyDerivation;
 import org.bitcoinj.crypto.DeterministicKey;
+import org.bitcoinj.crypto.MnemonicCode;
 import org.bitcoinj.params.MainNetParams;
 
 import org.spongycastle.math.ec.ECPoint;
@@ -34,6 +37,14 @@ import org.spongycastle.crypto.digests.SHA512Digest;
 import org.spongycastle.crypto.digests.SHA256Digest;
 import org.spongycastle.crypto.digests.RIPEMD160Digest;
 import org.spongycastle.crypto.params.KeyParameter;
+
+import org.spongycastle.crypto.BufferedBlockCipher;
+import org.spongycastle.crypto.engines.AESFastEngine;
+import org.spongycastle.crypto.modes.CBCBlockCipher;
+import org.spongycastle.crypto.paddings.PaddedBufferedBlockCipher;
+import org.spongycastle.crypto.params.ParametersWithIV;
+import org.spongycastle.crypto.CipherParameters;
+import org.spongycastle.crypto.InvalidCipherTextException;
 
 import com.subgraph.orchid.crypto.PRNGFixes;
 import com.subgraph.orchid.encoders.Hex;
@@ -157,7 +168,7 @@ public class BitsharesPlugin extends CordovaPlugin {
   }
 
   private JSONObject derivePrivate(Boolean test, String key, int deriv) throws JSONException {
-    DeterministicKey dk = HDKeyDerivation.deriveChildKey(DeterministicKey.deserializeB58(null, key), new ChildNumber(deriv, false));
+    DeterministicKey dk = HDKeyDerivation.deriveChildKey(DeterministicKey.deserializeB58(null, key), new ChildNumber(deriv, true));
     JSONObject result = new JSONObject();
     result.put("extendedPrivateKey", dk.serializePrivB58());
     return result;
@@ -281,6 +292,132 @@ public class BitsharesPlugin extends CordovaPlugin {
     String tmp = nonce + url + body;
     byte[] signature = hmacSha256(key.getBytes(), tmp.getBytes());
     result.put("signature", new String(Hex.encode(signature), "UTF-8"));
+    return result;
+  }
+
+  private byte[] getSharedSecret(ECKey Qp, ECKey dd) {
+    ECKey tmp = ECKey.fromPublicOnly( ECKey.compressPoint(Qp.getPubKeyPoint().multiply(dd.getPrivKey())) );
+    byte[] Xk_b = Arrays.copyOfRange(tmp.getPubKey(), 1, 33);
+    return sha512(Xk_b);
+  }
+
+  private JSONObject decryptMemo( Boolean test, String oneTimeKey, String encryptedMemo, String privKey) throws JSONException, IOException, Exception, InvalidCipherTextException {
+    JSONObject result = new JSONObject();
+
+    ECKey dd = new DumpedPrivateKey(null, privKey).getKey();
+    ECKey Qp = ECKey.fromPublicOnly(bts_decode_pubkey(test, oneTimeKey));
+
+    byte[] ss = getSharedSecret(Qp, dd);
+
+    final BufferedBlockCipher cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESFastEngine()));
+    KeyParameter kp = new KeyParameter(Arrays.copyOfRange(ss, 0, 32));
+    CipherParameters ivAndKey= new ParametersWithIV(kp, Arrays.copyOfRange(ss, 32, 32+16));
+    cipher.init(false, ivAndKey);
+
+    byte[] cipherBytes = Hex.decode(encryptedMemo); 
+
+    final byte[] decryptedBytes = new byte[cipher.getOutputSize(cipherBytes.length)];
+    final int processLen = cipher.processBytes(cipherBytes, 0, cipherBytes.length, decryptedBytes, 0);
+    final int doFinalLen = cipher.doFinal(decryptedBytes, processLen);
+
+    byte[] memo_data = Arrays.copyOf(decryptedBytes, processLen + doFinalLen);
+
+    byte[] message = new byte[19+32];
+    Arrays.fill(message, (byte)0);
+
+    String _from     = bts_encode_pubkey(test, Arrays.copyOfRange(memo_data, 0, 33));
+    String _from_sig = new String( Hex.encode( Arrays.copyOfRange(memo_data, 33, 33+8) ), "UTF-8");
+
+    System.arraycopy(memo_data, 33+8, message, 0,  19);
+
+    String _type     = new String( Hex.encode( Arrays.copyOfRange(memo_data, 33+8+19, 33+8+19+1)), "UTF-8");
+
+    if(memo_data.length > 33+8+1+19) {
+      System.arraycopy(memo_data, 33+8+1+19, message, 19,  32);
+    }
+
+    String _message = new String(message, "UTF-8");
+
+    result.put("from"     , _from);
+    result.put("from_sig" , _from_sig);
+    result.put("type"     , _type);
+    result.put("message"  , _message);
+
+    return result;
+  }
+
+  private JSONObject createMemo(Boolean test, String fromPubkey, String destPubkey, String message) throws JSONException, IOException, Exception, InvalidCipherTextException {
+    JSONObject result = new JSONObject();
+    //dest = (dd, Qd)
+    //tmp  = (dp, Qp)
+    //(xk, yk) = dp * Qd
+    //ss = sha512(xk)
+    //ss[:32] => key
+    //ss[32:48] => iv
+
+    //One time key
+    ECKey dd = ECKey.fromPrivate(new SecureRandom().generateSeed(32));
+    ECKey Qd = ECKey.fromPublicOnly( ECKey.compressPoint(dd.getPubKeyPoint()) );
+
+    byte[] ss = getSharedSecret(Qd, dd);
+
+    //build memo data
+    byte[] fromPubkey_b = bts_decode_pubkey(test, fromPubkey);
+    byte[] message_b    = message.getBytes();
+
+    byte[] memo_content = new byte[message_b.length > 19 ? 33+8+19+1+32 : 33+8+19+1]; 
+    Arrays.fill(memo_content, (byte)0);
+
+    //BTS_BLOCKCHAIN_MAX_MEMO_SIZE      = 19
+    //BTS_BLOCKCHAIN_EXTENDED_MEMO_SIZE = 32
+    //total=51
+
+    System.arraycopy(fromPubkey_b, 0, memo_content,    0,       33);
+    System.arraycopy(ss,           0, memo_content, 33+0,       8);
+    System.arraycopy(message_b,    0, memo_content, 33+8,       Math.min(message_b.length, 19));
+
+    if( message_b.length > 19 )
+      System.arraycopy(message_b, 19, memo_content, 33+8+19+1,  Math.min(message_b.length-19, 32));
+
+    final BufferedBlockCipher cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESFastEngine()));
+    KeyParameter kp = new KeyParameter(Arrays.copyOfRange(ss, 0, 32));
+    CipherParameters ivAndKey= new ParametersWithIV(kp, Arrays.copyOfRange(ss, 32, 32+16));
+    cipher.init(true, ivAndKey);
+
+    final byte[] encryptedBytes = new byte[cipher.getOutputSize(memo_content.length)];
+    final int processLen = cipher.processBytes(memo_content, 0, memo_content.length, encryptedBytes, 0);
+    final int doFinalLen = cipher.doFinal(encryptedBytes, processLen);
+
+    byte[] encrypted_memo_data = Arrays.copyOf(encryptedBytes, processLen + doFinalLen);
+
+    result.put("one_time_key", bts_encode_pubkey(test, Qd.getPubKey()));
+    result.put("encrypted_memo_data", new String(Hex.encode(encrypted_memo_data), "UTF-8"));
+    return result;
+  }
+
+  private void initMnemonicInstance() throws IOException {
+    if ( MnemonicCode.INSTANCE == null ) {
+      //HACK!!
+      String BIP39_ENGLISH_SHA256 = "ad90bf3beb7b0eb7e5acd74727dc0da96e0a280a258354e7293fb7e211ac03db";
+      MnemonicCode.INSTANCE = new MnemonicCode(cordova.getActivity().getAssets().open("english.txt"), BIP39_ENGLISH_SHA256);
+    }
+  }
+
+  private JSONObject createMnemonic( int entropy ) throws JSONException, IOException, Exception {
+    initMnemonicInstance();
+    JSONObject result = new JSONObject();
+    String words = Joiner.on(" ").join( MnemonicCode.INSTANCE.toMnemonic(new SecureRandom().generateSeed(entropy/8)) ); 
+    result.put("words", words);
+    return result;
+  }
+
+  private JSONObject mnemonicToMasterKey( String words ) throws JSONException, IOException, Exception {
+    JSONObject result = new JSONObject();
+    byte[] seed = MnemonicCode.toSeed(Arrays.asList(words.split(" ")), "");
+
+    DeterministicKey dk = HDKeyDerivation.createMasterPrivateKey(seed);
+
+    result.put("masterPrivateKey", dk.serializePrivB58());
     return result;
   }
 
@@ -414,6 +551,38 @@ public class BitsharesPlugin extends CordovaPlugin {
     if (action.equals("requestSignature")) {
       try {
         callbackContext.success( requestSignature( params.getString("key"), params.getString("nonce"), params.getString("url"), params.getString("body") ) );
+        return true;
+      } catch (Exception e) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
+      }
+    } else
+    if (action.equals("createMemo")) {
+      try {
+        callbackContext.success( createMemo( params.getBoolean("test"), params.getString("fromPubkey"), params.getString("destPubkey"), params.getString("message") ) );
+        return true;
+      } catch (Exception e) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
+      }
+    } else
+    if (action.equals("decryptMemo")) {
+      try {
+        callbackContext.success( decryptMemo( params.getBoolean("test"), params.getString("oneTimeKey"), params.getString("encryptedMemo"), params.getString("privKey") ) );
+        return true;
+      } catch (Exception e) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
+      }
+    } else
+    if (action.equals("createMnemonic")) {
+      try {
+        callbackContext.success( createMnemonic(params.getInt("entropy")) );
+        return true;
+      } catch (Exception e) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
+      }
+    } else
+    if (action.equals("mnemonicToMasterKey")) {
+      try {
+        callbackContext.success( mnemonicToMasterKey(params.getString("words")) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));

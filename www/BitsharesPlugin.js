@@ -75,6 +75,22 @@
   BitsharesPlugin.prototype.requestSignature = function (successCB, errorCB, key, nonce, url, body) {
     cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'requestSignature', [{'key':key, "none": nonce, "url":url, "body":body}]);
   };
+
+  BitsharesPlugin.prototype.createMemo = function (successCB, errorCB, fromPubkey, destPubkey, message) {
+    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'createMemo', [{'test':is_test, "fromPubkey": fromPubkey, "destPubkey":destPubkey, "message":message}]);
+  };
+
+  BitsharesPlugin.prototype.decryptMemo = function (successCB, errorCB, oneTimeKey, encryptedMemo, privKey) {
+    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'decryptMemo', [{'test':is_test, "oneTimeKey": oneTimeKey, "encryptedMemo":encryptedMemo, "privKey":privKey}]);
+  };
+
+  BitsharesPlugin.prototype.createMnemonic = function (successCB, errorCB, entropy) {
+    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'createMnemonic', [{'test':is_test, "entropy": entropy}]);
+  };
+
+  BitsharesPlugin.prototype.mnemonicToMasterKey = function (successCB, errorCB, words) {
+    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'mnemonicToMasterKey', [{'test':is_test, "words": words}]);
+  };
   
   BitsharesPlugin.install = function () {
     if (!window.plugins) {
