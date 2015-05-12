@@ -145,9 +145,17 @@ public class BitsharesPlugin extends CordovaPlugin {
     return true;
   }
 
-  private JSONObject extractDataFromKey(Boolean test, String key) throws JSONException {
+  private DeterministicKey fromB58(String key) {
+    if ( key.isEmpty() )
+      return null;
+      
+    return DeterministicKey.deserializeB58(null, key);
+  }
+  
+  private JSONObject extractDataFromKey(Boolean test, String parent, String key) throws JSONException {
 
-    DeterministicKey dk = DeterministicKey.deserializeB58(null, key);
+  
+    DeterministicKey dk = DeterministicKey.deserializeB58(fromB58(parent), key);
     byte[] pubkey =  ECKey.publicKeyFromPrivate(dk.getPrivKey(), true);
 
     JSONObject result = new JSONObject();
@@ -157,9 +165,9 @@ public class BitsharesPlugin extends CordovaPlugin {
     return result;
   }
 
-  private JSONObject extendedPublicFromPrivate(Boolean test, String key) throws JSONException {
+  private JSONObject extendedPublicFromPrivate(Boolean test, String parent, String key) throws JSONException {
 
-    DeterministicKey dk = DeterministicKey.deserializeB58(null, key);
+    DeterministicKey dk = DeterministicKey.deserializeB58(fromB58(parent), key);
 
     JSONObject result = new JSONObject();
     result.put("extendedPublicKey", dk.serializePubB58());
@@ -167,8 +175,9 @@ public class BitsharesPlugin extends CordovaPlugin {
 
   }
 
-  private JSONObject derivePrivate(Boolean test, String key, int deriv) throws JSONException {
-    DeterministicKey dk = HDKeyDerivation.deriveChildKey(DeterministicKey.deserializeB58(null, key), new ChildNumber(deriv, true));
+  private JSONObject derivePrivate(Boolean test, String parent, String key, int deriv) throws JSONException {
+    
+    DeterministicKey dk = HDKeyDerivation.deriveChildKey(DeterministicKey.deserializeB58(fromB58(parent), key), new ChildNumber(deriv, true));
     JSONObject result = new JSONObject();
     result.put("extendedPrivateKey", dk.serializePrivB58());
     return result;
@@ -229,8 +238,8 @@ public class BitsharesPlugin extends CordovaPlugin {
     return result;
   }
 
-  private JSONObject isValidKey(Boolean test, String key) throws JSONException {
-    DeterministicKey dk = DeterministicKey.deserializeB58(null, key);
+  private JSONObject isValidKey(Boolean test, String parent, String key) throws JSONException {
+    DeterministicKey dk = DeterministicKey.deserializeB58(fromB58(parent), key);
     JSONObject result = new JSONObject();
     result.put("is_valid", "true");
     return result;
@@ -438,7 +447,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else 
     if (action.equals("extractDataFromKey")) {
       try {
-        callbackContext.success( extractDataFromKey( params.getBoolean("test"), params.getString("key") ) );
+        callbackContext.success( extractDataFromKey( params.getBoolean("test"), params.getString("parent"), params.getString("key") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -446,7 +455,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("extendedPublicFromPrivate")) {
       try {
-        callbackContext.success( extendedPublicFromPrivate( params.getBoolean("test"), params.getString("key") ) );
+        callbackContext.success( extendedPublicFromPrivate( params.getBoolean("test"), params.getString("parent"), params.getString("key") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -454,7 +463,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("derivePrivate")) {
       try {
-        callbackContext.success( derivePrivate( params.getBoolean("test"), params.getString("key"), params.getInt("deriv") ) );
+        callbackContext.success( derivePrivate( params.getBoolean("test"), params.getString("parent"), params.getString("key"), params.getInt("deriv") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -486,7 +495,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("isValidKey")) {
       try {
-        callbackContext.success( isValidKey( params.getBoolean("test"), params.getString("key") ) );
+        callbackContext.success( isValidKey( params.getBoolean("test"), params.getString("parent"), params.getString("key") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));

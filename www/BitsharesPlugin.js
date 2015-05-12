@@ -12,16 +12,16 @@
    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'createMasterKey', [{'test':is_test}]);
   };
 
-  BitsharesPlugin.prototype.extractDataFromKey = function (successCB, errorCB, key) {
-   cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'extractDataFromKey', [{'test':is_test, "key": key}]);
+  BitsharesPlugin.prototype.extractDataFromKey = function (successCB, errorCB, parent, key) {
+   cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'extractDataFromKey', [{'test':is_test, "parent": parent, "key": key}]);
   };
 
-  BitsharesPlugin.prototype.extendedPublicFromPrivate = function (successCB, errorCB, key) {
-   cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'extendedPublicFromPrivate', [{'test':is_test, "key": key}]);
+  BitsharesPlugin.prototype.extendedPublicFromPrivate = function (successCB, errorCB, parent, key) {
+   cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'extendedPublicFromPrivate', [{'test':is_test, "parent": parent, "key": key}]);
   };
 
-  BitsharesPlugin.prototype.derivePrivate = function (successCB, errorCB, key, deriv) {
-   cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'derivePrivate', [{'test':is_test, "key": key, "deriv": deriv}]);
+  BitsharesPlugin.prototype.derivePrivate = function (successCB, errorCB, parent, key, deriv) {
+   cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'derivePrivate', [{'test':is_test, "parent": parent, "key": key, "deriv": deriv}]);
   };
 
   BitsharesPlugin.prototype.encryptString = function (successCB, errorCB, data, password) {
@@ -32,8 +32,8 @@
    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'decryptString', [{'test':is_test, "data": data, "password": password}]);
   };
 
-  BitsharesPlugin.prototype.isValidKey = function (successCB, errorCB, key) {
-   cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'isValidKey', [{'test':is_test, "key": key}]);
+  BitsharesPlugin.prototype.isValidKey = function (successCB, errorCB, parent, key) {
+   cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'isValidKey', [{'test':is_test, "parent": parent, "key": key}]);
   };
 
   BitsharesPlugin.prototype.isValidWif = function (successCB, errorCB, wif) {
@@ -73,7 +73,7 @@
   };
 
   BitsharesPlugin.prototype.requestSignature = function (successCB, errorCB, key, nonce, url, body) {
-    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'requestSignature', [{'key':key, "none": nonce, "url":url, "body":body}]);
+    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'requestSignature', [{'key':key, "nonce": nonce, "url":url, "body":body}]);
   };
 
   BitsharesPlugin.prototype.createMemo = function (successCB, errorCB, fromPubkey, destPubkey, message) {
