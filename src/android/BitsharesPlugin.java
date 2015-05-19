@@ -145,17 +145,19 @@ public class BitsharesPlugin extends CordovaPlugin {
     return true;
   }
 
-  private DeterministicKey fromB58(String key) {
+  private DeterministicKey fromB58(String parent, String key) {
     if ( key.isEmpty() )
       return null;
       
-    return DeterministicKey.deserializeB58(null, key);
+    if ( parent.isEmpty() )
+      return DeterministicKey.deserializeB58(null, key);
+
+    return DeterministicKey.deserializeB58(DeterministicKey.deserializeB58(null, parent), key);
   }
   
-  private JSONObject extractDataFromKey(Boolean test, String parent, String key) throws JSONException {
+  private JSONObject extractDataFromKey(Boolean test, String grandParent, String parent, String key) throws JSONException {
 
-  
-    DeterministicKey dk = DeterministicKey.deserializeB58(fromB58(parent), key);
+    DeterministicKey dk = DeterministicKey.deserializeB58(fromB58(grandParent, parent), key);
     byte[] pubkey =  ECKey.publicKeyFromPrivate(dk.getPrivKey(), true);
 
     JSONObject result = new JSONObject();
@@ -165,21 +167,12 @@ public class BitsharesPlugin extends CordovaPlugin {
     return result;
   }
 
-  private JSONObject extendedPublicFromPrivate(Boolean test, String parent, String key) throws JSONException {
-
-    DeterministicKey dk = DeterministicKey.deserializeB58(fromB58(parent), key);
-
-    JSONObject result = new JSONObject();
-    result.put("extendedPublicKey", dk.serializePubB58());
-    return result;
-
-  }
-
-  private JSONObject derivePrivate(Boolean test, String parent, String key, int deriv) throws JSONException {
+  private JSONObject derivePrivate(Boolean test, String grandParent, String parent, String key, int deriv) throws JSONException {
     
-    DeterministicKey dk = HDKeyDerivation.deriveChildKey(DeterministicKey.deserializeB58(fromB58(parent), key), new ChildNumber(deriv, true));
-    JSONObject result = new JSONObject();
-    result.put("extendedPrivateKey", dk.serializePrivB58());
+    DeterministicKey dk = HDKeyDerivation.deriveChildKey(DeterministicKey.deserializeB58(fromB58(grandParent, parent), key), new ChildNumber(deriv, true));
+    String child = dk.serializePrivB58();
+    JSONObject result = extractDataFromKey(test, parent, key, child);
+    result.put("extendedPrivateKey", child);
     return result;
   }
 
@@ -238,8 +231,8 @@ public class BitsharesPlugin extends CordovaPlugin {
     return result;
   }
 
-  private JSONObject isValidKey(Boolean test, String parent, String key) throws JSONException {
-    DeterministicKey dk = DeterministicKey.deserializeB58(fromB58(parent), key);
+  private JSONObject isValidKey(Boolean test, String grandParent, String parent, String key) throws JSONException {
+    DeterministicKey dk = DeterministicKey.deserializeB58(fromB58(grandParent, parent), key);
     JSONObject result = new JSONObject();
     result.put("is_valid", "true");
     return result;
@@ -313,49 +306,75 @@ public class BitsharesPlugin extends CordovaPlugin {
   private JSONObject decryptMemo( Boolean test, String oneTimeKey, String encryptedMemo, String privKey) throws JSONException, IOException, Exception, InvalidCipherTextException {
     JSONObject result = new JSONObject();
 
-    ECKey dd = new DumpedPrivateKey(null, privKey).getKey();
-    ECKey Qp = ECKey.fromPublicOnly(bts_decode_pubkey(test, oneTimeKey));
+    int _error       = 1;
+    String _from     = "";
+    String _from_sig = "";
+    String _type     = "";
+    String _message  = "";
 
-    byte[] ss = getSharedSecret(Qp, dd);
+    try {
 
-    final BufferedBlockCipher cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESFastEngine()));
-    KeyParameter kp = new KeyParameter(Arrays.copyOfRange(ss, 0, 32));
-    CipherParameters ivAndKey= new ParametersWithIV(kp, Arrays.copyOfRange(ss, 32, 32+16));
-    cipher.init(false, ivAndKey);
+      ECKey dd = new DumpedPrivateKey(null, privKey).getKey();
+      ECKey Qp = ECKey.fromPublicOnly(bts_decode_pubkey(test, oneTimeKey));
 
-    byte[] cipherBytes = Hex.decode(encryptedMemo); 
+      byte[] ss = getSharedSecret(Qp, dd);
 
-    final byte[] decryptedBytes = new byte[cipher.getOutputSize(cipherBytes.length)];
-    final int processLen = cipher.processBytes(cipherBytes, 0, cipherBytes.length, decryptedBytes, 0);
-    final int doFinalLen = cipher.doFinal(decryptedBytes, processLen);
+      final BufferedBlockCipher cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESFastEngine()));
+      KeyParameter kp = new KeyParameter(Arrays.copyOfRange(ss, 0, 32));
+      CipherParameters ivAndKey= new ParametersWithIV(kp, Arrays.copyOfRange(ss, 32, 32+16));
+      cipher.init(false, ivAndKey);
 
-    byte[] memo_data = Arrays.copyOf(decryptedBytes, processLen + doFinalLen);
+      byte[] cipherBytes = Hex.decode(encryptedMemo); 
 
-    byte[] message = new byte[19+32];
-    Arrays.fill(message, (byte)0);
+      final byte[] decryptedBytes = new byte[cipher.getOutputSize(cipherBytes.length)];
+      final int processLen = cipher.processBytes(cipherBytes, 0, cipherBytes.length, decryptedBytes, 0);
+      final int doFinalLen = cipher.doFinal(decryptedBytes, processLen);
 
-    String _from     = bts_encode_pubkey(test, Arrays.copyOfRange(memo_data, 0, 33));
-    String _from_sig = new String( Hex.encode( Arrays.copyOfRange(memo_data, 33, 33+8) ), "UTF-8");
+      byte[] memo_data = Arrays.copyOf(decryptedBytes, processLen + doFinalLen);
 
-    System.arraycopy(memo_data, 33+8, message, 0,  19);
+      byte[] message = new byte[19+32];
+      Arrays.fill(message, (byte)0);
 
-    String _type     = new String( Hex.encode( Arrays.copyOfRange(memo_data, 33+8+19, 33+8+19+1)), "UTF-8");
+      _from     = bts_encode_pubkey(test, Arrays.copyOfRange(memo_data, 0, 33));
+      _from_sig = new String( Hex.encode( Arrays.copyOfRange(memo_data, 33, 33+8) ), "UTF-8");
 
-    if(memo_data.length > 33+8+1+19) {
-      System.arraycopy(memo_data, 33+8+1+19, message, 19,  32);
+      System.arraycopy(memo_data, 33+8, message, 0,  19);
+
+      _type     = new String( Hex.encode( Arrays.copyOfRange(memo_data, 33+8+19, 33+8+19+1)), "UTF-8");
+
+      if(memo_data.length > 33+8+1+19) {
+        System.arraycopy(memo_data, 33+8+1+19, message, 19,  32);
+      }
+
+      //_message = new String(message, "UTF-8");
+      //
+      
+      int message_len = message.length;
+      for(int i=0; i<message.length; i++)
+      {
+        if(message[i] == 0x00){
+          message_len = i+1;
+          break;
+        }
+      }
+
+      _message = new String(message, 0, message_len, "UTF-8");
+      _error = 0;
     }
+    catch (Exception ex) {
 
-    String _message = new String(message, "UTF-8");
+    }
 
     result.put("from"     , _from);
     result.put("from_sig" , _from_sig);
     result.put("type"     , _type);
     result.put("message"  , _message);
+    result.put("error"    , _error);
 
     return result;
   }
 
-  private JSONObject createMemo(Boolean test, String fromPubkey, String destPubkey, String message) throws JSONException, IOException, Exception, InvalidCipherTextException {
+  private JSONObject createMemo(Boolean test, String fromPubkey, String destPubkey, String message, String oneTimePriv) throws JSONException, IOException, Exception, InvalidCipherTextException {
     JSONObject result = new JSONObject();
     //dest = (dd, Qd)
     //tmp  = (dp, Qp)
@@ -365,7 +384,8 @@ public class BitsharesPlugin extends CordovaPlugin {
     //ss[32:48] => iv
 
     //One time key
-    ECKey dd = ECKey.fromPrivate(new SecureRandom().generateSeed(32));
+    // CKey dd = ECKey.fromPrivate(new SecureRandom().generateSeed(32));
+    ECKey dd = new DumpedPrivateKey(null, oneTimePriv).getKey();
     ECKey Qd = ECKey.fromPublicOnly( ECKey.compressPoint(dd.getPubKeyPoint()) );
 
     byte[] ss = getSharedSecret(Qd, dd);
@@ -447,15 +467,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else 
     if (action.equals("extractDataFromKey")) {
       try {
-        callbackContext.success( extractDataFromKey( params.getBoolean("test"), params.getString("parent"), params.getString("key") ) );
-        return true;
-      } catch (Exception e) {
-        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
-      }
-    } else
-    if (action.equals("extendedPublicFromPrivate")) {
-      try {
-        callbackContext.success( extendedPublicFromPrivate( params.getBoolean("test"), params.getString("parent"), params.getString("key") ) );
+        callbackContext.success( extractDataFromKey( params.getBoolean("test"), params.getString("grandParent"), params.getString("parent"), params.getString("key") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -463,7 +475,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("derivePrivate")) {
       try {
-        callbackContext.success( derivePrivate( params.getBoolean("test"), params.getString("parent"), params.getString("key"), params.getInt("deriv") ) );
+        callbackContext.success( derivePrivate( params.getBoolean("test"), params.getString("grandParent"), params.getString("parent"), params.getString("key"), params.getInt("deriv") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -495,7 +507,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("isValidKey")) {
       try {
-        callbackContext.success( isValidKey( params.getBoolean("test"), params.getString("parent"), params.getString("key") ) );
+        callbackContext.success( isValidKey( params.getBoolean("test"), params.getString("grandParent"), params.getString("parent"), params.getString("key") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
@@ -567,7 +579,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     } else
     if (action.equals("createMemo")) {
       try {
-        callbackContext.success( createMemo( params.getBoolean("test"), params.getString("fromPubkey"), params.getString("destPubkey"), params.getString("message") ) );
+        callbackContext.success( createMemo( params.getBoolean("test"), params.getString("fromPubkey"), params.getString("destPubkey"), params.getString("message"), params.getString("oneTimePriv") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
