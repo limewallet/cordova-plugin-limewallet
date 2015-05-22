@@ -71,6 +71,14 @@ public class BitsharesPlugin extends CordovaPlugin {
     return result;
   }
 
+  private byte[] sha256(byte[] bytes) {
+    SHA256Digest digest = new SHA256Digest();
+    digest.update(bytes, 0, bytes.length);
+    byte[] ret = new byte[digest.getDigestSize()];
+    digest.doFinal(ret, 0);
+    return ret;
+  }
+
   private byte[] sha512(byte[] bytes) {
     SHA512Digest digest = new SHA512Digest();
     digest.update(bytes, 0, bytes.length);
@@ -450,6 +458,12 @@ public class BitsharesPlugin extends CordovaPlugin {
     return result;
   }
 
+  private JSONObject sha256( String data ) throws JSONException, IOException, Exception {
+    JSONObject result = new JSONObject();
+    result.put("sha256", new String(Hex.encode(sha256(data.getBytes())), "UTF-8"));
+    return result;
+  }
+
   @Override
   public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
 
@@ -604,6 +618,14 @@ public class BitsharesPlugin extends CordovaPlugin {
     if (action.equals("mnemonicToMasterKey")) {
       try {
         callbackContext.success( mnemonicToMasterKey(params.getString("words")) );
+        return true;
+      } catch (Exception e) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
+      }
+    } else
+    if (action.equals("sha256")) {
+      try {
+        callbackContext.success( sha256(params.getString("data")) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));

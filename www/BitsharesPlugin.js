@@ -87,6 +87,10 @@
   BitsharesPlugin.prototype.mnemonicToMasterKey = function (successCB, errorCB, words) {
     cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'mnemonicToMasterKey', [{'test':is_test, "words": words}]);
   };
+
+  BitsharesPlugin.prototype.sha256 = function (successCB, errorCB, data) {
+    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'sha256', [{"data": data}]);
+  };
   
   BitsharesPlugin.install = function () {
     if (!window.plugins) {
