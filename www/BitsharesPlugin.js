@@ -91,6 +91,22 @@
   BitsharesPlugin.prototype.sha256 = function (successCB, errorCB, data) {
     cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'sha256', [{"data": data}]);
   };
+
+  BitsharesPlugin.prototype.randomInteger = function (successCB, errorCB) {
+    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'randomInteger', [{}]);
+  };
+
+  BitsharesPlugin.prototype.skip32 = function (successCB, errorCB, value, key, encrypt) {
+    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'skip32', [{'value':value, 'key':key, 'encrypt':encrypt}]);
+  };
+
+  BitsharesPlugin.prototype.randomData = function (successCB, errorCB, length) {
+    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'randomData', [{'length':length}]);
+  };
+
+  BitsharesPlugin.prototype.pbkdf2 = function (successCB, errorCB, password, salt, c, dkLen) {
+    cordova.exec(successCB, errorCB, 'BitsharesPlugin', 'pbkdf2', [{'password':password, 'salt':salt, 'c':c, 'dkLen':dkLen}]);
+  };
   
   BitsharesPlugin.install = function () {
     if (!window.plugins) {

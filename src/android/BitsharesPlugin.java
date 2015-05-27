@@ -3,6 +3,7 @@ package com.latincoin.bitwallet;
 import java.util.Arrays;
 import java.io.UnsupportedEncodingException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.math.BigInteger;
 
@@ -29,6 +30,7 @@ import org.bitcoinj.crypto.ChildNumber;
 import org.bitcoinj.crypto.HDKeyDerivation;
 import org.bitcoinj.crypto.DeterministicKey;
 import org.bitcoinj.crypto.MnemonicCode;
+import org.bitcoinj.crypto.PBKDF2SHA512;
 import org.bitcoinj.params.MainNetParams;
 
 import org.spongycastle.math.ec.ECPoint;
@@ -50,6 +52,8 @@ import com.subgraph.orchid.crypto.PRNGFixes;
 import com.subgraph.orchid.encoders.Hex;
 
 import de.schildbach.wallet.util.Crypto;
+
+import com.boivie.skip32.Skip32;
 
 public class BitsharesPlugin extends CordovaPlugin {
 
@@ -163,7 +167,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     return DeterministicKey.deserializeB58(DeterministicKey.deserializeB58(null, parent), key);
   }
   
-  private JSONObject extractDataFromKey(Boolean test, String grandParent, String parent, String key) throws JSONException {
+  private JSONObject extractDataFromKey(Boolean test, String grandParent, String parent, String key) throws UnsupportedEncodingException, JSONException {
 
     DeterministicKey dk = DeterministicKey.deserializeB58(fromB58(grandParent, parent), key);
     byte[] pubkey =  ECKey.publicKeyFromPrivate(dk.getPrivKey(), true);
@@ -172,10 +176,11 @@ public class BitsharesPlugin extends CordovaPlugin {
     result.put("address", bts_pub_to_address(test, pubkey));
     result.put("pubkey" , bts_encode_pubkey(test, pubkey));
     result.put("privkey", dk.getPrivateKeyEncoded(main));
+    result.put("privkey_hex", new String(dk.getPrivKeyBytes(), "UTF-8"));
     return result;
   }
 
-  private JSONObject derivePrivate(Boolean test, String grandParent, String parent, String key, int deriv) throws JSONException {
+  private JSONObject derivePrivate(Boolean test, String grandParent, String parent, String key, int deriv) throws UnsupportedEncodingException, JSONException {
     
     DeterministicKey dk = HDKeyDerivation.deriveChildKey(DeterministicKey.deserializeB58(fromB58(grandParent, parent), key), new ChildNumber(deriv, true));
     String child = dk.serializePrivB58();
@@ -392,11 +397,12 @@ public class BitsharesPlugin extends CordovaPlugin {
     //ss[32:48] => iv
 
     //One time key
-    // CKey dd = ECKey.fromPrivate(new SecureRandom().generateSeed(32));
-    ECKey dd = new DumpedPrivateKey(null, oneTimePriv).getKey();
-    ECKey Qd = ECKey.fromPublicOnly( ECKey.compressPoint(dd.getPubKeyPoint()) );
+    ECKey dp = new DumpedPrivateKey(null, oneTimePriv).getKey();
+    ECKey Qp = ECKey.fromPublicOnly( ECKey.compressPoint(dp.getPubKeyPoint()) );
 
-    byte[] ss = getSharedSecret(Qd, dd);
+    ECKey Qd = ECKey.fromPublicOnly(bts_decode_pubkey(test, destPubkey));
+
+    byte[] ss = getSharedSecret(Qd, dp);
 
     //build memo data
     byte[] fromPubkey_b = bts_decode_pubkey(test, fromPubkey);
@@ -427,7 +433,7 @@ public class BitsharesPlugin extends CordovaPlugin {
 
     byte[] encrypted_memo_data = Arrays.copyOf(encryptedBytes, processLen + doFinalLen);
 
-    result.put("one_time_key", bts_encode_pubkey(test, Qd.getPubKey()));
+    result.put("one_time_key", bts_encode_pubkey(test, Qp.getPubKey()));
     result.put("encrypted_memo_data", new String(Hex.encode(encrypted_memo_data), "UTF-8"));
     return result;
   }
@@ -461,6 +467,36 @@ public class BitsharesPlugin extends CordovaPlugin {
   private JSONObject sha256( String data ) throws JSONException, IOException, Exception {
     JSONObject result = new JSONObject();
     result.put("sha256", new String(Hex.encode(sha256(data.getBytes())), "UTF-8"));
+    return result;
+  }
+
+  private JSONObject randomInteger()  throws JSONException, IOException, Exception {
+    JSONObject result = new JSONObject();
+    int _int = ByteBuffer.wrap(new SecureRandom().generateSeed(4)).getInt(); 
+    result.put("int", _int);
+    return result;
+  }
+
+  private JSONObject randomData(int length)  throws JSONException, IOException, Exception {
+    JSONObject result = new JSONObject();
+    byte[] random = new SecureRandom().generateSeed(length);
+    result.put("random", new String(Hex.encode(random), "UTF-8"));
+    return result;
+  }
+
+  private JSONObject skip32( int value, String skip32key, Boolean encrypt )  throws JSONException, IOException, Exception {
+    JSONObject result = new JSONObject();
+    byte[] key = Hex.decode(skip32key);
+    int _skip32_int = encrypt ? Skip32.encrypt(value, key) : Skip32.decrypt(value, key); 
+    result.put("skip32", _skip32_int);
+    return result;
+  }
+
+  private JSONObject pbkdf2(String password, String salt, int c, int dkLen)  throws JSONException, IOException, Exception {
+    JSONObject result = new JSONObject();
+    byte[] key = PBKDF2SHA512.derive(password, salt, c, dkLen);
+    result.put("key", new String(Hex.encode(key), "UTF-8"));
+    result.put("key_hash", new String(Hex.encode(sha256(key)), "UTF-8"));
     return result;
   }
 
@@ -630,7 +666,40 @@ public class BitsharesPlugin extends CordovaPlugin {
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
       }
+    } else
+    if (action.equals("randomInteger")) {
+      try {
+        callbackContext.success( randomInteger() );
+        return true;
+      } catch (Exception e) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
+      }
+    } else
+    if (action.equals("randomData")) {
+      try {
+        callbackContext.success( randomData(params.getInt("length")) );
+        return true;
+      } catch (Exception e) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
+      }
+    } else
+    if (action.equals("skip32")) {
+      try {
+        callbackContext.success( skip32(params.getInt("value"), params.getString("key"), params.getBoolean("encrypt")) );
+        return true;
+      } catch (Exception e) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
+      }
+    } else
+    if (action.equals("pbkdf2")) {
+      try {
+        callbackContext.success( pbkdf2(params.getString("password"), params.getString("salt"), params.getInt("c"), params.getInt("dkLen")) );
+        return true;
+      } catch (Exception e) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
+      }
     }
+
 
     return false;
   }
