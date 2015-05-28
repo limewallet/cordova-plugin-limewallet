@@ -176,7 +176,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     result.put("address", bts_pub_to_address(test, pubkey));
     result.put("pubkey" , bts_encode_pubkey(test, pubkey));
     result.put("privkey", dk.getPrivateKeyEncoded(main));
-    result.put("privkey_hex", new String(dk.getPrivKeyBytes(), "UTF-8"));
+    result.put("privkey_hex", new String(Hex.encode(dk.getPrivKeyBytes()), "UTF-8"));
     return result;
   }
 
