@@ -25,6 +25,7 @@ import org.bitcoinj.core.Utils;
 import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.DumpedPrivateKey;
 import org.bitcoinj.core.Sha256Hash;
+import org.bitcoinj.core.Address;
 import org.bitcoinj.core.AddressFormatException;
 import org.bitcoinj.crypto.ChildNumber;
 import org.bitcoinj.crypto.HDKeyDerivation;
@@ -57,7 +58,6 @@ import com.boivie.skip32.Skip32;
 
 public class BitsharesPlugin extends CordovaPlugin {
 
-  private NetworkParameters main = MainNetParams.get();
   private static final String PROD_PREFIX = "BTS";
   private static final String TEST_PREFIX = "DVS";
 
@@ -175,7 +175,7 @@ public class BitsharesPlugin extends CordovaPlugin {
     JSONObject result = new JSONObject();
     result.put("address", bts_pub_to_address(test, pubkey));
     result.put("pubkey" , bts_encode_pubkey(test, pubkey));
-    result.put("privkey", dk.getPrivateKeyEncoded(main));
+    result.put("privkey", dk.getPrivateKeyEncoded(MainNetParams.get()));
     result.put("privkey_hex", new String(Hex.encode(dk.getPrivKeyBytes()), "UTF-8"));
     return result;
   }
@@ -273,6 +273,14 @@ public class BitsharesPlugin extends CordovaPlugin {
     result.put("addy", addy);
     return result;
   } 
+
+  private JSONObject btcIsValidAddress(Boolean test, String addy) throws JSONException, Exception {
+    Address tmp = new Address(test ? BlockCypherTestnetParams.get() : MainNetParams.get(), addy);
+
+    JSONObject result = new JSONObject();
+    result.put("is_valid", "true");
+    return result;
+  }
 
   private JSONObject btsIsValidAddress(Boolean test, String addy) throws JSONException, Exception {
     bts_is_valid_address( test, addy );
@@ -590,6 +598,14 @@ public class BitsharesPlugin extends CordovaPlugin {
     if (action.equals("btsIsValidAddress")) {
       try {
         callbackContext.success( btsIsValidAddress( params.getBoolean("test"), params.getString("addy") ) );
+        return true;
+      } catch (Exception e) {
+        callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
+      }
+    } else
+    if (action.equals("btcIsValidAddress")) {
+      try {
+        callbackContext.success( btcIsValidAddress( params.getBoolean("test"), params.getString("addy") ) );
         return true;
       } catch (Exception e) {
         callbackContext.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, e.toString()));
