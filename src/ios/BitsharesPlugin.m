@@ -1,48 +1,3 @@
-
-#import <CommonCrypto/CommonCryptor.h>
-#import <CommonCrypto/CommonDigest.h>
-@implementation NSString (CCCryptUtil)
--(NSString*) md5 {
-    const char * cStrValue = [self UTF8String];
-    unsigned char theResult[CC_MD5_DIGEST_LENGTH];
-    CC_MD5(cStrValue, strlen(cStrValue), theResult);
-    return [NSString stringWithFormat:@"%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
-            theResult[0], theResult[1], theResult[2], theResult[3],
-            theResult[4], theResult[5], theResult[6], theResult[7],
-            theResult[8], theResult[9], theResult[10], theResult[11],
-            theResult[12], theResult[13], theResult[14], theResult[15]];
-}
-@end
-
-#import <Foundation/Foundation.h>
-@interface NSData (NSData_Conversion)
-
-#pragma mark - String Conversion
-- (NSString *)hexadecimalString;
-
-@end
-
-@implementation NSData (NSData_Conversion)
-
-#pragma mark - String Conversion
-- (NSString *)hexadecimalString {
-    /* Returns hexadecimal string of NSData. Empty string if data is empty.   */
-    
-    const unsigned char *dataBuffer = (const unsigned char *)[self bytes];
-    
-    if (!dataBuffer)
-        return [NSString string];
-    
-    NSUInteger          dataLength  = [self length];
-    NSMutableString     *hexString  = [NSMutableString stringWithCapacity:(dataLength * 2)];
-    
-    for (int i = 0; i < dataLength; ++i)
-        [hexString appendString:[NSString stringWithFormat:@"%02lx", (unsigned long)dataBuffer[i]]];
-    
-    return [NSString stringWithString:hexString];
-}
-
-@end
 //
 //  BitsharesPlugin.m
 //  Bitwallet
@@ -53,44 +8,8 @@
 
 #import "BitsharesPlugin.h"
 
-#import <CoreBitcoin/CoreBitcoin.h>
-#import "RNOpenSSLEncryptor.h"
-#import "RNOpenSSLDecryptor.h"
-#import <CommonCrypto/CommonCrypto.h>
-#if BTCDataRequiresOpenSSL
-#include <openssl/ripemd.h>
-#include <openssl/evp.h>
-#endif
-
-NSString * const PROD_PREFIX = @"BTS";
-NSString * const TEST_PREFIX = @"DVS";
-
 @implementation BitsharesPlugin
 @synthesize callbackID;
-
-
-// Utils
--(NSMutableData*) BTCSHA512:(NSData*)data
-{
-    if (!data) return nil;
-    unsigned char digest[CC_SHA512_DIGEST_LENGTH];
-    CC_SHA512([data bytes], (CC_LONG)[data length], digest);
-    
-    NSMutableData* result = [NSMutableData dataWithBytes:digest length:CC_SHA512_DIGEST_LENGTH];
-    BTCSecureMemset(digest, 0, CC_SHA512_DIGEST_LENGTH);
-    return result;
-}
-
--(NSMutableData*) BTCSHA256:(NSData*) data
-{
-    if (!data) return nil;
-    unsigned char digest[CC_SHA256_DIGEST_LENGTH];
-    CC_SHA256([data bytes], (CC_LONG)[data length], digest);
-    
-    NSMutableData* result = [NSMutableData dataWithBytes:digest length:CC_SHA256_DIGEST_LENGTH];
-    BTCSecureMemset(digest, 0, CC_SHA256_DIGEST_LENGTH);
-    return result;
-}
 
 -(BOOL) is_valid_bts_pubkey_impl:(NSString*)pubkey with_test:(BOOL)is_test{
     
@@ -282,536 +201,227 @@ NSString * const TEST_PREFIX = @"DVS";
     return eKey.extendedPublicKey;
 }
 
+
+
+-(void) return_result:CDVInvokedUrlCommand*)command withVals:(NSDictionary *)vals withStatus:(CDVCommandStatus)status {
+
+  CDVPluginResult *result = [ 
+    CDVPluginResult
+    resultWithStatus:status
+    messageAsDictionary:errDict
+  ];
+
+  [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+}
+
+-(void) return_error:CDVInvokedUrlCommand*)command withVals:(NSDictionary *)vals {
+  return [self returl_result:command withVals:vals withStatus:CDVCommandStatus_ERROR];
+}
+
+-(void) return_ok:(NSDictionary *)vals  {
+
+}
+
+-(NSDictionary *) getParameters:(NSArray *)params withCommand:(CDVInvokedUrlCommand *)command {
+
+  NSDictionary *args = NULL;
+    
+  if([command.arguments count] && [[command.arguments objectAtIndex:0] isKindOfClass:[NSDictionary class]])
+    args = [command.arguments objectAtIndex:0];
+
+  if(args) {
+
+    NSArray *keys = [args allKeys];
+
+    for (id object in params) {
+      if( ![keys contains:object] )
+        return NULL;
+    }
+  }
+
+  return args;
+}
 /******************************************/
 /* Public interface implementation ****** */
-
 -(void) btsIsValidPubkey:(CDVInvokedUrlCommand*)command {
-    NSLog(@"#--btsIsValidPubkey");
-    NSDictionary* args;
-    NSString *pubkey = @"";
-    BOOL is_test = FALSE;
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
+  NSLog(@"#--btsIsValidPubkey");
+
+  NSDictionary* args = [self getParameters:@[@"pubkey", "test"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
     
-    if (args) {
-        pubkey = [args valueForKey:@"pubkey"];
-        is_test = (BOOL)[args valueForKey:@"test"];
-    }
-    
-    if (pubkey.length == 0) {
-        NSLog(@"#--btsIsValidPubkey pubkey is undefined");
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to read pubkey", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-    BOOL is_valid = [self is_valid_bts_pubkey_impl:pubkey with_test:is_test];
-    
-    if(!is_valid)
-    {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Invalid pubkey", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             @"true", @"is_valid",
-                             nil
-                             ];
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+  NSString *pubkey = [args valueForKey:@"pubkey"];
+  BOOL is_test     = (BOOL)[args valueForKey:@"test"];
+
+  BOOL is_valid = [self is_valid_bts_pubkey_impl:pubkey with_test:is_test];
+
+  if(!is_valid) {
+    return return_error(command, @{@"Invalid pubkey", @"messageData"});
+  }
+
+  return return_ok(command, @{@"true", @"is_valid"});
 }
 
 
 -(void) btsIsValidAddress:(CDVInvokedUrlCommand*)command {
-    NSLog(@"#--btsIsValidAddress");
-    NSDictionary* args;
-    NSString *addy = @"";
-    BOOL is_test = FALSE;
+  NSLog(@"#--btsIsValidAddress");
+  
+  NSDictionary* args = [self getParameters:@[@"addy", "test"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
 
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
-    
-    if (args) {
-        addy = [args valueForKey:@"addy"];
-        is_test = (BOOL)[args valueForKey:@"test"];
-    }
-    
-    if (addy.length == 0) {
-        NSLog(@"#--btsIsValidAddress addy es una baba papa!!!!");
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to read address", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;    }
-    
-    BOOL is_valid = [self is_valid_bts_address_impl:addy with_test:is_test];
-    
-    //NSLog(@"#--btsIsValidAddress is_valid?: [%hhd]",is_valid);
-    
-    if(!is_valid)
-    {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Invalid address", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             @"true", @"is_valid",
-                             nil
-                             ];
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+  NSString *addy = [args valueForKey:@"addy"];
+  BOOL is_test   = (BOOL)[args valueForKey:@"test"];
+
+  BOOL is_valid = [self is_valid_bts_address_impl:addy with_test:is_test];
+  if(!is_valid) {
+    return return_error(command, @{@"Invalid address", @"messageData"});
+  }
+
+  return return_ok(command, @{@"true", @"is_valid"});
 }
 
 -(void) btsPubToAddress:(CDVInvokedUrlCommand*)command {
-    NSLog(@"#--btsPubToAddress");
-    NSDictionary* args;
-    NSString *pubkey = @"";
-    BOOL is_test = FALSE;
+  NSLog(@"#--btsPubToAddress");
 
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
-        
-    if (args) {
-        pubkey = [args valueForKey:@"pubkey"];
-        is_test = (BOOL)[args valueForKey:@"test"];
-    }
-        
-    if (pubkey.length == 0) {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to read pubkey", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-    NSData *data = [pubkey dataUsingEncoding:NSUTF8StringEncoding];
-    NSString* addy = [self bts_pub_to_address_impl:data with_test:is_test];
-    
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                                initWithObjectsAndKeys :
-                                addy, @"addy",
-                                nil
-                                ];
-        
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                        resultWithStatus    : CDVCommandStatus_OK
-                                        messageAsDictionary : jsonObj
-                                        ];
-        
-        
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+  NSDictionary* args = [self getParameters:@[@"pubkey", "test"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
+
+  NSString *pubkey = [args valueForKey:@"pubkey"];
+  BOOL is_test     = (BOOL)[args valueForKey:@"test"];
+  
+  NSData *data = [pubkey dataUsingEncoding:NSUTF8StringEncoding];
+  NSString* addy = [self bts_pub_to_address_impl:data with_test:is_test];
+
+  return return_ok(command, @{addy, @"addy"});
 }
     
 -(void) btsWifToAddress:(CDVInvokedUrlCommand*)command {
-    NSLog(@"#--btsWifToAddress");
-    NSDictionary* args;
-    NSString *wif = @"";
-    BOOL is_test = FALSE;
+  NSLog(@"#--btsWifToAddress");
 
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
-    
-    if (args) {
-        wif = [args valueForKey:@"wif"];
-        is_test = (BOOL)[args valueForKey:@"test"];
-    }
-    
-    if (wif.length == 0) {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to read key", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    NSString* addy = [self bts_wif_to_address_impl:wif with_test:is_test];
-    
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             addy, @"addy",
-                             nil
-                             ];
-    
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+  NSDictionary* args = [self getParameters:@[@"wif", "test"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
+
+  NSString *wif = [args valueForKey:@"wif"];
+  BOOL is_test  = (BOOL)[args valueForKey:@"test"];
+
+  NSString* addy = [self bts_wif_to_address_impl:wif with_test:is_test];
+  return return_ok(command, @{addy, @"addy"});
 }
 
 -(void) compactSignatureForHash:(CDVInvokedUrlCommand*)command {
-    NSLog(@"#--compactSignatureForHash");
-    NSDictionary* args;
-    NSString *wif = @"";
-    NSString *hash = @"";
-    
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
-    
-    if (args) {
-        wif = [args valueForKey:@"wif"];
-        hash = [args valueForKey:@"hash"];
-    }
-    
-    if (wif.length == 0) {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to read key", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-        return;
-    }
-    if (hash.length == 0) {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to read ahsh to sign", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;    }
-    
-    NSString *res = [self compactSignatureForHash_impl:hash wif:wif ];
-    
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             res, @"compactSignatureForHash",
-                             nil
-                             ];
-    
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    
+  NSLog(@"#--compactSignatureForHash");
+
+  NSDictionary* args = [self getParameters:@[@"wif", "hash"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
+
+  NSString *wif  = [args valueForKey:@"wif"];
+  NSString *hash = [args valueForKey:@"hash"];
+
+  NSString *signature = [self compactSignatureForHash_impl:hash wif:wif ];
+  return return_ok(command, @{signature, @"compactSignatureForHash"});
 }
 
 -(void) isValidKey:(CDVInvokedUrlCommand*)command {
-    NSLog(@"#--isValidKey");
-    NSDictionary* args;
-    NSString *key = @"";
-    
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
-    
-    if (args) {
-        key = [args valueForKey:@"key"];
-    }
-    
-    if (key.length == 0) {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to red key", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-    BTCKey* btc_key = [[BTCKey alloc] initWithPrivateKey:[key dataUsingEncoding:NSUTF8StringEncoding]];
-    if (![btc_key.privateKeyAddress isKindOfClass:[BTCPrivateKeyAddress class]])
-    {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Key is not valid", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             @"true", @"is_valid",
-                             nil
-                             ];
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+  NSLog(@"#--isValidKey");
+
+  NSDictionary* args = [self getParameters:@[@"key"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
+
+  NSString *key = [args valueForKey:@"key"];
+  
+  BTCKey* btc_key = [[BTCKey alloc] initWithPrivateKey:[key dataUsingEncoding:NSUTF8StringEncoding]];
+  if (![btc_key.privateKeyAddress isKindOfClass:[BTCPrivateKeyAddress class]]) {
+    return return_error(command, @{@"Key is not valid", @"messageData"});
+  }
+
+  return return_ok(command, @{@"true", @"is_valid"});
 }
 
 -(void) isValidWif:(CDVInvokedUrlCommand*)command {
-    NSLog(@"#--isValidWif");
-    NSDictionary* args;
-    NSString *wif = @"";
-    
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
-    
-    if (args) {
-        wif = [args valueForKey:@"wif"];
-    }
-    
-    if (wif.length == 0) {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to read Wif", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;    }
-    BTCPrivateKeyAddress* addr;
-    // Es asi, ver BTCKey
-    @try {
-        addr = [BTCPrivateKeyAddress addressWithBase58String:wif];
-    }
-    @catch (NSException *exception) {
-        NSLog(@"#-- %@", exception.reason);
-        addr = nil;
-    }
-    @finally {
-//        NSLog(@"Char at index %d cannot be found", index);
-//        NSLog(@"Max index is: %d", [test length]-1);
-    }
-    
-    if (addr==nil || ![addr isKindOfClass:[BTCPrivateKeyAddress class]])
-    {
-        NSLog(@"#-- Wif is not valid");
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Wif is not valid", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-    NSLog(@"#-- Wif IS VALID!!");
+  NSLog(@"#--isValidWif");
 
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             @"true", @"is_valid",
-                             nil
-                             ];
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+  NSDictionary* args = [self getParameters:@[@"wif"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
+
+  NSString *key = [args valueForKey:@"wif"];
+  
+  // Es asi, ver BTCKey
+  @try {
+    BTCPrivateKeyAddress* addr = [BTCPrivateKeyAddress addressWithBase58String:wif];
+    NSLog(@"#-- Wif IS VALID!!");
+  }
+  @catch (NSException *exception) {
+    NSLog(@"#-- %@", exception.reason);
+    return return_error(command, @{@"Wif is not valid", @"messageData"});
+  }
+
+  return return_ok(command, @{@"true", @"is_valid"});
 }
 
 -(void) encryptString:(CDVInvokedUrlCommand*)command {
-    NSLog(@"#--encryptString");
-    NSDictionary* args;
-    NSString *textToCypher = @"";
-    NSString *password = @"";
-    
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
-    
-    if (args) {
-        textToCypher = [args valueForKey:@"data"];
-        password = [args valueForKey:@"password"];
-    }
-    
-    if (textToCypher.length == 0 || password.length == 0) {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to read cypher text and/or password", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-        
-    }
-    NSLog(@"#-- about to encrypt [%@] with key:[%@]", textToCypher, password);
-    NSString* encryptedData = [self encryptString_impl:textToCypher withKey:password];
-    NSLog(@"#-- encrypted: [%@]", encryptedData);
-    
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             encryptedData, @"encryptedData",
-                             nil
-                             ];
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-}
+  NSLog(@"#--encryptString");
 
+  NSDictionary* args = [self getParameters:@[@"data", @"password"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
+
+  NSString *textToCypher = [args valueForKey:@"data"];
+  NSString *password     = [args valueForKey:@"password"];
+  
+  NSLog(@"#-- about to encrypt [%@] with key:[%@]", textToCypher, password);
+  NSString* encryptedData = [self encryptString_impl:textToCypher withKey:password];
+  NSLog(@"#-- encrypted: [%@]", encryptedData);
+  
+  return return_ok(command, @{encryptedData, @"encryptedData"});
+}
 
 //Params: cypher text, password
 //Returns: decrypted text
 -(void) decryptString:(CDVInvokedUrlCommand*)command {
-    NSLog(@"#--decryptString");
-    NSDictionary* args;
-    NSString *cypherText = @"";
-    NSString *password = @"";
-    
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
-    
-    if (args) {
-        cypherText = [args valueForKey:@"data"];
-        password = [args valueForKey:@"password"];
-    }
-    
-    if (cypherText.length == 0) {
-        
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to read cypher text", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-//    NSData *data = [cypherText dataUsingEncoding:NSUTF8StringEncoding];
-    NSString* decryptedData = [self decryptData_impl:cypherText withKey:password];
-    
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             decryptedData, @"decryptedData",
-                             nil
-                             ];
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+  NSLog(@"#--decryptString");
+
+  NSDictionary* args = [self getParameters:@[@"data", @"password"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
+
+  NSString *cypherText = [args valueForKey:@"data"];
+  NSString *password   = [args valueForKey:@"password"];
+  
+  NSString* decryptedData = [self decryptData_impl:cypherText withKey:password];
+  
+  return return_ok(command, @{decryptedData, @"decryptedData"});
 }
 
 // Params: private key
 // Returns: public key
 - (void) extendedPublicFromPrivate:(CDVInvokedUrlCommand*)command {
-    NSLog(@"#--extendedPublicFromPrivate");
-    NSDictionary* args;
-    NSString *extendedKey = @"";
-    
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
-    
-    if (args) {
-        extendedKey = [args valueForKey:@"key"];
-    }
-    
-    if (extendedKey.length == 0) {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to parse key", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-    NSString* strPubKey = [self extendedPublicFromPrivate_impl:extendedKey];
-    
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             strPubKey, @"extendedPublicKey",
-                             nil
-                             ];
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+  NSLog(@"#--extendedPublicFromPrivate");
+
+  NSDictionary* args = [self getParameters:@[@"key"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
+
+  NSString *extendedKey = extendedKey = [args valueForKey:@"key"];
+  
+  NSString* strPubKey = [self extendedPublicFromPrivate_impl:extendedKey];
+  
+  return return_ok(command, @{strPubKey, @"extendedPublicKey"});
 }
 
 
@@ -819,302 +429,134 @@ NSString * const TEST_PREFIX = @"DVS";
 // Returns: random generated private key
 -(void) createMasterKey:(CDVInvokedUrlCommand*)command{
     
-    NSLog(@"#--createMasterKey:: about to create seed");
-    NSMutableData* seed = BTCRandomDataWithLength(32);
-    
-    NSLog(@"createMasterKey:: about to create key");
-    BTCKeychain* masterChain = [[BTCKeychain alloc] initWithSeed:seed];
-    
-    NSLog(@"createMasterKey:: key created!!");
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             masterChain.extendedPrivateKey , @"masterPrivateKey",
-                             nil
-                             ];
-
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    NSLog(@"createMasterKey:: about to send command result");
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    NSLog(@"createMasterKey:: command result sent!!");
+  NSLog(@"#--createMasterKey:: about to create seed");
+  NSMutableData* seed = BTCRandomDataWithLength(32);
+  
+  NSLog(@"createMasterKey:: about to create key");
+  BTCKeychain* masterChain = [[BTCKeychain alloc] initWithSeed:seed];
+  
+  return return_ok(command, @{masterChain.extendedPrivateKey , @"masterPrivateKey"});
 }
 
 // Params: Private Key
 // Returns: address, public key and private key.
+
+-(NSDictionary *) extractDataFromKey_impl:(NSString*)extendedKey withTest:(BOOL)is_test {
+
+  BTCKeychain* eKey = [[BTCKeychain alloc] initWithExtendedKey:extendedKey];
+  NSData* pubKey    = eKey.publicKeychain.key.publicKey;
+
+  BTCKey *theKey = [[BTCKeychain alloc] initWithExtendedKey:eKey.extendedPrivateKey].key;
+
+  NSString *addy       = [self bts_pub_to_address_impl:pubKey with_test:is_test];
+  NSString *strPubKey  = [self bts_encode_pub_key:pubKey with_test:is_test];
+  NSString *strPrivKey = theKey.WIF;
+  NSString *hexPrivKey = [theKey.privateKey hexadecimalString];
+
+  return @{addy, @"addy", strPubKey, @"pubkey", strPrivKey, @"privkey", @hexPrivKey, @"privkey_hex"};
+}
+
 -(void) extractDataFromKey:(CDVInvokedUrlCommand*)command{
-    NSLog(@"#--extractDataFromKey");
-    NSDictionary* args;
-    NSString *extendedKey = @"";
-    BOOL is_test = FALSE;
+  NSLog(@"#--extractDataFromKey");
 
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
+  NSDictionary* args = [self getParameters:@[@"key", "test"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
 
-    if (args) {
-        extendedKey = [args valueForKey:@"key"];
-        is_test = (BOOL)[args valueForKey:@"test"];
-    }
+  NSString *extendedKey = [args valueForKey:@"key"];
+  BOOL is_test          = (BOOL)[args valueForKey:@"test"];
 
-    if (extendedKey.length == 0) {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to parse key", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-    BTCKeychain* eKey = [[BTCKeychain alloc] initWithExtendedKey:extendedKey];
-    
-    
-    NSData* pubKey  = eKey.publicKeychain.key.publicKey;
-
-    NSString *addy       = [self bts_pub_to_address_impl:pubKey with_test:is_test];
-    NSString *strPubKey  = [self bts_encode_pub_key:pubKey with_test:is_test];
-    NSString *strPrivKey = [[BTCKeychain alloc] initWithExtendedKey:eKey.extendedPrivateKey].key.WIF;
-    
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             addy, @"address",
-                             strPubKey, @"pubkey",
-                             strPrivKey, @"privkey",
-                             nil
-                             ];
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    
+  NSDictionary *result = [self extractDataFromKey_impl:extendedKey withTest:is_test];
+  return return_ok(command, result);
 }
 
 // Params: Private Key and derivation index.
 // Returns: private key.
 -(void) derivePrivate:(CDVInvokedUrlCommand*)command{
-    NSLog(@"#--derivePrivate");
-    NSDictionary* args;
-    NSString *extendedKey = @"";
-    uint32_t deriv = 0;
-    
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
-    
-    if (args) {
-        extendedKey            = [args valueForKey:@"key"];
-        NSString *_deriv       = [args valueForKey:@"deriv"];
-        deriv = (unsigned int)[_deriv intValue];
-    }
-    
-    if (extendedKey.length == 0) {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to parse key", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-    BTCKeychain* eKey = [[BTCKeychain alloc] initWithExtendedKey:extendedKey];
+  NSLog(@"#--derivePrivate");
 
-    BTCKeychain* dKey = [eKey derivedKeychainAtIndex:deriv hardened:TRUE];
-    
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             dKey.extendedPrivateKey, @"extendedPrivateKey",
-                             nil
-                             ];
-    
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+  NSDictionary* args = [self getParameters:@[@"key", "test", "deriv"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
+
+  NSString *extendedKey = [args valueForKey:@"key"];
+  BOOL is_test          = (BOOL)[args valueForKey:@"test"];
+  uint32_t deriv        = [[args valueForKey:@"deriv"] intValue];
+
+  BTCKeychain* eKey = [[BTCKeychain alloc] initWithExtendedKey:extendedKey];
+  BTCKeychain* dKey = [eKey derivedKeychainAtIndex:deriv hardened:TRUE];
+
+  NSDictionary *result = [self extractDataFromKey_impl:dKey.extendedPrivateKey withTest:is_test]; 
+
+  [result setObject: dKey.extendedPrivateKey fromKey:@"extendedPrivateKey"];
+
+  return return_ok(command, result);
 }
 
 -(void) compactSignatureForMessage:(CDVInvokedUrlCommand*)command{
-    NSDictionary* args;
-    NSString *wif = @"";
-    NSString *msg = @"";
-    BOOL is_test = FALSE;
+  NSLog(@"#--compactSignatureForMessage");
+
+  NSDictionary* args = [self getParameters:@[@"wif", "msg", "test"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
+
+  NSString *wif    = [args valueForKey:@"wif"];
+  NSString *msg    = [args valueForKey:@"msg"];
+  BOOL     is_test = (BOOL)[args valueForKey:@"test"];
     
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
-    
-    if (args) {
-        wif = [args valueForKey:@"wif"];
-        msg = [args valueForKey:@"msg"];
-        is_test = (BOOL)[args valueForKey:@"test"];
-    }
-    
-    if (wif.length == 0 || msg.length==0) {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to read key and or message", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-    NSData *msg_data = [msg dataUsingEncoding:NSUTF8StringEncoding];
-    //NSString *msg_hash = [(NSData*)[self BTCSHA256:msg_data] hexadecimalString];
-    NSString *msg_hash = [self compactSignatureForHash_impl:BTCHexStringFromData([self BTCSHA256:msg_data]) wif:wif];
-    
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             msg_hash, @"compactSignatureForHash",
-                             nil
-                             ];
-    
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+  NSData   *msg_data = [msg dataUsingEncoding:NSUTF8StringEncoding];
+  NSString *signature = [self compactSignatureForHash_impl:BTCHexStringFromData([self BTCSHA256:msg_data]) wif:wif];
+
+  return return_ok(command, @{signature, @"compactSignatureForHash"});
 }
 
--(void) recoverPubkey:(CDVInvokedUrlCommand*)command{
-    NSDictionary* args;
-    NSString *signature = @"";
-    NSString *msg = @"";
-    BOOL is_test = FALSE;
-    
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
-    
-    if (args) {
-        signature = [args valueForKey:@"signature"];
-        msg = [args valueForKey:@"msg"];
-        is_test = (BOOL)[args valueForKey:@"test"];
-    }
-    
-    if (signature.length == 0 || msg.length==0) {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Unable to read signature and or message", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-    NSData *msg_data = [msg dataUsingEncoding:NSUTF8StringEncoding];
-    NSData *signature_data = BTCDataWithHexString(signature);
-    
-    //return BTCHexStringFromData( [key compactSignatureForHash:BTCDataWithHexString(hash)] );
+-(void) recoverPubkey:(CDVInvokedUrlCommand*)command {
+  NSLog(@"#--recoverPubkey");
 
+  NSDictionary* args = [self getParameters:@[@"signature", "msg", "test"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
+
+  NSString *signature = [args valueForKey:@"signature"];
+  NSString *msg       = [args valueForKey:@"msg"];
+  BOOL     is_test    = (BOOL)[args valueForKey:@"test"];
+
+  NSData *msg_data = [msg dataUsingEncoding:NSUTF8StringEncoding];
+  NSData *signature_data = BTCDataWithHexString(signature);
     
-    BTCKey* key = [BTCKey verifyCompactSignature:signature_data forHash:[self BTCSHA256:msg_data]];
-    
-    NSString * pubkey = @"<null>";
-    if(key!=nil)
-    {
-        pubkey = [self bts_encode_pub_key:[key compressedPublicKey] with_test:is_test];
-        //pubkey = [self bts_encode_pub_key:[key publicKey] with_test:is_test];
-    }
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             pubkey, @"pubKey",
-                             nil
-                             ];
-    
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+  BTCKey* key = [BTCKey verifyCompactSignature:signature_data forHash:[self BTCSHA256:msg_data]];
+  if(!key) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
+
+  NSString *pubkey = [self bts_encode_pub_key:[key compressedPublicKey] with_test:is_test];
+  return return_ok(command, @{pubkey, @"pubKey"});
 }
 
 -(void) btcIsValidAddress:(CDVInvokedUrlCommand*)command{
-    NSLog(@"#--btcIsValidAddress");
-    NSDictionary* args;
-    NSString *addy = @"";
-    BOOL is_test = FALSE; // 'B' or 'C' (0x1B) 27
 
-    if ([command.arguments count] > 0) {
-        args = [command.arguments objectAtIndex:0];
-    }
+  NSLog(@"#--btcIsValidAddress");
+
+  NSDictionary* args = [self getParameters:@[@"addy", "test"] withCommand:command];
+  if(!args) {
+    return return_error(command, @{@"Missing parameters", @"messageData"});
+  }
+
+  NSString *addy      = [args valueForKey:@"addy"];
+  BOOL     is_test    = (BOOL)[args valueForKey:@"test"];
+
+  BOOL is_valid = [self is_valid_btc_address_impl:addy with_test:is_test];
     
-    if (args) {
-        addy = [args valueForKey:@"addy"];
-        is_test = (BOOL)[args valueForKey:@"test"];
-    }
-        
-    if (addy.length == 0) {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                    initWithObjectsAndKeys :
-                                    @"Unable to red addy", @"messageData",
-                                    nil
-                                    ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                    resultWithStatus:CDVCommandStatus_ERROR
-                                    messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-    BOOL is_valid = [self is_valid_btc_address_impl:addy with_test:is_test];
-    
-    //NSLog(@"#--btsIsValidAddress is_valid?: [%hhd]",is_valid);
-    
-    if(!is_valid)
-    {
-        NSDictionary *errDict = [ [NSDictionary alloc]
-                                 initWithObjectsAndKeys :
-                                 @"Invalid address", @"messageData",
-                                 nil
-                                 ];
-        CDVPluginResult *result = [ CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_ERROR
-                                   messageAsDictionary:errDict];
-        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
-        return;
-    }
-    
-    NSDictionary *jsonObj = [ [NSDictionary alloc]
-                             initWithObjectsAndKeys :
-                             @"true", @"is_valid",
-                             nil
-                             ];
-    CDVPluginResult *pluginResult = [ CDVPluginResult
-                                     resultWithStatus    : CDVCommandStatus_OK
-                                     messageAsDictionary : jsonObj
-                                     ];
-    
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    
-    
-    }
+  if(!is_valid) {
+    return return_error(command, @{@"Invalid address", @"messageData"});
+  }
+
+  return return_error(command, @{@"true", @"is_valid"});
+}
 @end
 
 
