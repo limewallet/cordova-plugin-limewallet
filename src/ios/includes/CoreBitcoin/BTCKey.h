@@ -64,17 +64,25 @@
 // Verifies signature for a given hash with a public key.
 - (BOOL) isValidSignature:(NSData*)signature hash:(NSData*)hash;
 
+// Multiplies a public key of the receiver with a given private key and returns resulting curve point as BTCKey object (pubkey only).
+// Pubkey compression flag is the same as on receiver.
+- (BTCKey*) diffieHellmanWithPrivateKey:(BTCKey*)privkey;
+
 // Returns a signature data for a 256-bit hash using private key.
 // Returns nil if signing failed or a private key is not present.
-- (NSData*)signatureForHash:(NSData*)hash;
+- (NSData*) signatureForHash:(NSData*)hash;
 
 // Same as above, but also appends a hash type byte to the signature.
-- (NSData*)signatureForHash:(NSData*)hash withHashType:(BTCSignatureHashType)hashType;
+- (NSData*) signatureForHash:(NSData*)hash hashType:(BTCSignatureHashType)hashType;
+- (NSData*) signatureForHash:(NSData*)hash withHashType:(BTCSignatureHashType)hashType DEPRECATED_ATTRIBUTE;
+
+// [RFC6979 implementation](https://tools.ietf.org/html/rfc6979).
+// Returns 32-byte `k` nonce generated deterministically from the `hash` and the private key.
+// Returns a mutable data to make it clearable.
+- (NSMutableData*) signatureNonceForHash:(NSData*)hash;
 
 // Clears all key data from memory making receiver invalid.
 - (void) clear;
-
-
 
 
 // BTCAddress Import/Export

@@ -36,4 +36,19 @@
 
 -(void) btcIsValidAddress:(CDVInvokedUrlCommand*)command;
 
+-(void) requestSignature:(CDVInvokedUrlCommand*)command;
+-(void) createMemo:(CDVInvokedUrlCommand*)command;
+-(void) decryptMemo:(CDVInvokedUrlCommand*)command;
+-(void) createMnemonic:(CDVInvokedUrlCommand*)command;
+
+//createMnemonic = //entropy) {
+//mnemonicToMasterKey = //words) {
+//sha256 = //data) {
+//randomInteger =
+//skip32 = //value, key, encrypt) {
+//randomData = //length) {
+//pbkdf2 = //password, salt, c, dkLen) {
+
+
+
 @end

@@ -1,5 +1,3 @@
-// CoreBitcoin by Oleg Andreev <oleganza@gmail.com>, WTFPL.
-
 #import <Foundation/Foundation.h>
 #if TARGET_OS_IPHONE
 #import <UIKit/UIKit.h>

@@ -1,5 +1,3 @@
-// CoreBitcoin by Oleg Andreev <oleganza@gmail.com>, WTFPL.
-
 #import <Foundation/Foundation.h>
 #import "BTCUnitsAndLimits.h"
 
@@ -33,6 +31,20 @@
  */
 @property(nonatomic) NSString* message;
 
+/*!
+ * Payment request URL (r=...). Default is nil.
+ */
+@property(nonatomic) NSURL* paymentRequestURL;
+
+/*!
+ * Complete URL built from the individual properties.
+ */
+@property(nonatomic, readonly) NSURL* URL;
+
+/*!
+ * Returns YES if it has a valid address or paymentRequestURL.
+ */
+@property(nonatomic, readonly) BOOL isValid;
 
 /*!
  * Makes a URL in form "bitcoin:<address>?amount=1.2345&label=<label>.
@@ -44,12 +56,14 @@
 
 /*!
  * Instantiates if URL is a valid bitcoin: URL.
+ * To be valid it should either contain a valid address, or payment request URL (r=), or both.
  */
 - (id) initWithURL:(NSURL*)url;
 
 /*!
- * Builds a URL using the properties.
+ * Instantiates an empty Bitcoin URL.
+ * Fill in address, amount, label and other fields and use `URL` property to get a composed URL.
  */
-- (NSURL*) URL;
+- (id) init;
 
 @end

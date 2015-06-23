@@ -1,5 +1,3 @@
-// CoreBitcoin by Oleg Andreev <oleganza@gmail.com>, WTFPL.
-
 #import <Foundation/Foundation.h>
 #import "BTCUnitsAndLimits.h"
 
@@ -91,15 +89,26 @@ typedef NS_ENUM(NSInteger, BTCCurrencyConverterMode) {
 
 /*!
  * Code of the fiat currency used by exchange natively.
- * Typically, it is the same as `currencyCode`, but may differ if, 
+ * Typically, it is the same as `currencyCode`, but may differ if,
  * for instance, prices are expressed in USD, but exchange operates in EUR.
  */
 @property(nonatomic) NSString* nativeCurrencyCode;
 
 /*!
  * Name of the exchange/market that provides this exchange rate.
+ * Deprecated. Use sourceName instead.
  */
-@property(nonatomic) NSString* marketName;
+@property(nonatomic) NSString* marketName DEPRECATED_ATTRIBUTE;
+
+/*!
+ * Name of the exchange market or price index that provides this exchange rate.
+ */
+@property(nonatomic) NSString* sourceName;
+
+/*!
+ * Serializes state into a plist/json dictionary.
+ */
+@property(nonatomic, readonly) NSDictionary* dictionary;
 
 /*!
  * Serializes state into a plist/json dictionary.
@@ -116,9 +125,5 @@ typedef NS_ENUM(NSInteger, BTCCurrencyConverterMode) {
  */
 - (NSDecimalNumber*) fiatFromBitcoin:(BTCAmount)satoshis;
 
-/*!
- * Serializes state into a plist/json dictionary.
- */
-- (NSDictionary*) dictionary;
 
 @end

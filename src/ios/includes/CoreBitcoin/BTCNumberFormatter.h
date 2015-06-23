@@ -1,5 +1,3 @@
-// CoreBitcoin by Oleg Andreev <oleganza@gmail.com>, WTFPL.
-
 #import <Foundation/Foundation.h>
 #import "BTCUnitsAndLimits.h"
 
@@ -51,7 +49,18 @@ BTCAmount BTCAmountFromDecimalNumber(NSNumber* num);
  * Placeholder text for the input field.
  * E.g. "0 000 000.00" for 'bits' and "0.00000000" for 'BTC'.
  */
-- (NSString *) placeholderText;
+@property(nonatomic, readonly) NSString* placeholderText;
+
+/*!
+ * Returns a matching bitcoin symbol.
+ * If `symbolStyle` is BTCNumberFormatterSymbolStyleNone, returns the code (BTC, mBTC, Bits or SAT).
+ */
+@property(nonatomic, readonly) NSString* standaloneSymbol;
+
+/*!
+ * Returns a matching bitcoin unit code (BTC, mBTC etc) regardless of the symbol style.
+ */
+@property(nonatomic, readonly) NSString* unitCode;
 
 /*!
  * Formats the amount according to units and current formatting style.
@@ -59,26 +68,10 @@ BTCAmount BTCAmountFromDecimalNumber(NSNumber* num);
 - (NSString *) stringFromAmount:(BTCAmount)amount;
 
 /*!
- * Returns a matching bitcoin symbol. 
- * If `symbolStyle` is BTCNumberFormatterSymbolStyleNone, returns the code (BTC, mBTC, Bits or SAT).
- */
-- (NSString *) standaloneSymbol;
-
-/*!
  * Returns 0 in case of failure to parse the string.
  * To handle that case, use `-[NSNumberFormatter numberFromString:]`, but keep in mind
  * that NSNumber* will be in specified units, not in satoshis.
  */
 - (BTCAmount) amountFromString:(NSString *)string;
-
-/*!
- * Converts satoshis to a number in specified units (BTC, mBTC etc).
- */
-- (NSNumber*) numberFromSatoshis:(BTCAmount)satoshis;
-
-/*!
- * Converts number in specified units (BTC, mBTC etc) to satoshis.
- */
-- (BTCAmount) satoshisFromNumber:(NSNumber*)number;
 
 @end
