@@ -116,17 +116,15 @@ NSString * const TEST_PREFIX = @"DVS";
 }
 
 +(NSDictionary *) extractDataFromKey:(NSString*)extendedKey withTest:(BOOL)is_test {
-
   BTCKeychain* eKey = [[BTCKeychain alloc] initWithExtendedKey:extendedKey];
   NSData* pubKey    = eKey.publicKeychain.key.publicKey;
 
   BTCKey *theKey = [[BTCKeychain alloc] initWithExtendedKey:eKey.extendedPrivateKey].key;
-
   NSString *strPubKey  = [BitsharesPlugin_impl btsEncodePubkey:pubKey with_test:is_test];
   NSString *addy       = [BitsharesPlugin_impl btsPubToAddress:strPubKey with_test:is_test];
   NSString *strPrivKey = theKey.WIF;
   NSString *hexPrivKey = [theKey.privateKey hexadecimalString];
-
+    
   return @{@"addy":addy, @"pubkey":strPubKey, @"privkey":strPrivKey, @"privkey_hex":hexPrivKey};
 }
 
@@ -208,11 +206,11 @@ NSString * const TEST_PREFIX = @"DVS";
 
 +(NSString*) btsPubToAddress:(NSString*)pubkey with_test:(BOOL)is_test{
 
-  NSString* pubkey_data = [BitsharesPlugin_impl btsDecodePubkey:pubkey with_test:is_test];
+  NSData* pubkey_data = [BitsharesPlugin_impl btsDecodePubkey:pubkey with_test:is_test];
 
-  NSData *data = [pubkey_data dataUsingEncoding:NSUTF8StringEncoding];
+  //NSData *data = [pubkey_data dataUsingEncoding:NSUTF8StringEncoding];
 
-  NSMutableData *r = BTCRIPEMD160( [self BTCSHA512:pubkey] );
+  NSMutableData *r = BTCRIPEMD160( [self BTCSHA512:pubkey_data] );
   NSData *c = BTCRIPEMD160(r);
 
   [r appendBytes:c.bytes length:4];

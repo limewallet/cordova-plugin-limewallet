@@ -52,7 +52,7 @@
         <header-file src="src/ios/src/hacko.h" />
         <source-file src="src/ios/src/hacko.c" />
 
-        <source-file src="src/ios/src/skip32.c" />
+        <source-file src="src/ios/skip32.c" />
         <header-file src="src/ios/src/RNCryptor/RNCryptor.h" />
         <header-file src="src/ios/src/RNCryptor/RNCryptor+Private.h" />
         <header-file src="src/ios/src/RNCryptor/RNCryptorEngine.h" />
