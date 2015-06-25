@@ -125,7 +125,7 @@ NSString * const TEST_PREFIX = @"DVS";
   NSString *strPrivKey = theKey.WIF;
   NSString *hexPrivKey = [theKey.privateKey hexadecimalString];
     
-  return @{@"addy":addy, @"pubkey":strPubKey, @"privkey":strPrivKey, @"privkey_hex":hexPrivKey};
+  return @{@"address":addy, @"pubkey":strPubKey, @"privkey":strPrivKey, @"privkey_hex":hexPrivKey};
 }
 
 +(NSString *) derivePrivate:(NSString*)extendedKey withDeriv:(int)deriv withTest:(BOOL)is_test {
