@@ -57,7 +57,7 @@
 -(void) createMasterKey:(CDVInvokedUrlCommand*)command{
   NSLog(@"#--createMasterKey");
   NSString *masterPrivateKey = [BitsharesPlugin_impl createMasterKey];
-    [self return_ok:command withVals:@{@"masterPrivateKey":masterPrivateKey}];
+  [self return_ok:command withVals:@{@"masterPrivateKey":masterPrivateKey}];
 }
 
 -(void) extractDataFromKey:(CDVInvokedUrlCommand*)command{
@@ -90,11 +90,12 @@
   uint32_t deriv        = [[args valueForKey:@"deriv"] intValue];
 
   NSString *extendedPrivateKey = [BitsharesPlugin_impl derivePrivate:extendedKey withDeriv:deriv withTest:is_test];
-  NSDictionary *result = [BitsharesPlugin_impl extractDataFromKey:extendedPrivateKey withTest:is_test];
-  NSMutableDictionary *m_result = [result mutableCopy];
-  [m_result setValue:extendedPrivateKey forKey:@"extendedPrivateKey"];
 
-    [self return_ok:command withVals:(NSDictionary*)m_result];
+  NSDictionary *result = [BitsharesPlugin_impl extractDataFromKey:extendedPrivateKey withTest:is_test]; 
+  NSMutableDictionary *md = [result mutableCopy];
+  [md setValue:extendedPrivateKey forKey:@"extendedPrivateKey"];
+
+  [self return_ok:command withVals:md];
 }
 
 - (void) extendedPublicFromPrivate:(CDVInvokedUrlCommand*)command {
@@ -467,8 +468,9 @@
     NSLog(@"#--randomInteger");
     
     u_int32_t res   = [BitsharesPlugin_impl randomInteger];
-
-    [self return_ok:command withVals:@{@"int":[[NSString alloc] initWithFormat:@"%u", res]}];
+    
+    //[self return_ok:command withVals:@{@"int":res}];
+    [self return_ok:command withVals:@{@"int":[NSString stringWithFormat:@"%lu", (unsigned long)res]}];
 }
 
 -(void)randomData:(CDVInvokedUrlCommand*)command {
@@ -503,7 +505,8 @@
     
     uint32_t res   = [BitsharesPlugin_impl skip32:value withSkip32Key:key withEncrypt:encrypt];
     
-    [self return_ok:command withVals:@{@"skip32":[[NSString alloc] initWithFormat:@"%u", res]}];
+    //[self return_ok:command withVals:@{@"skip32":res}];
+    [self return_ok:command withVals:@{@"skip32":[NSString stringWithFormat:@"%lu", (unsigned long)res]}];
     
 }
 
