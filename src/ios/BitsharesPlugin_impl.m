@@ -199,7 +199,8 @@ NSString * const TEST_PREFIX = @"DVS";
 }
 
 +(NSString*) btsWifToAddress:(NSString*)wif with_test:(BOOL)is_test{
-  NSString *pubkey = [BitsharesPlugin_impl btsEncodePubkey:[[BTCKey alloc] initWithWIF:wif].compressedPublicKey with_test:is_test];
+  //NSString *pubkey = [BitsharesPlugin_impl btsEncodePubkey:[[BTCKey alloc] initWithWIF:wif].compressedPublicKey with_test:is_test];
+  NSString *pubkey = [BitsharesPlugin_impl btsPubToAddress:[[[BTCKey alloc] initWithWIF:wif].compressedPublicKey hexadecimalString] with_test:is_test];
   return [BitsharesPlugin_impl btsPubToAddress:pubkey  with_test:is_test];
 }
 
