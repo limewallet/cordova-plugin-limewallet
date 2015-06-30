@@ -181,15 +181,18 @@ NSString * const TEST_PREFIX = @"DVS";
 +(BOOL) isValidWif:(NSString*)wif {
 
   // Es asi, ver BTCKey
+  BTCKey *key = nil;
   @try {
-    BTCPrivateKeyAddress* addr = [BTCPrivateKeyAddress addressWithBase58String:wif];
+    //BTCPrivateKeyAddress* addr = [BTCPrivateKeyAddress addressWithBase58String:wif];
+    key = [[BTCKey alloc] initWithWIF:wif];
     NSLog(@"#-- Wif IS VALID!!");
   }
   @catch (NSException *exception) {
     NSLog(@"#-- %@", exception.reason);
     return FALSE;
   }
-
+  if(key==nil)
+      return FALSE;
   return TRUE;
 }
 
@@ -199,6 +202,7 @@ NSString * const TEST_PREFIX = @"DVS";
 }
 
 +(NSString*) btsWifToAddress:(NSString*)wif with_test:(BOOL)is_test{
+  
   //NSString *pubkey = [BitsharesPlugin_impl btsEncodePubkey:[[BTCKey alloc] initWithWIF:wif].compressedPublicKey with_test:is_test];
   NSString *pubkey = [BitsharesPlugin_impl btsPubToAddress:[[[BTCKey alloc] initWithWIF:wif].compressedPublicKey hexadecimalString] with_test:is_test];
   return [BitsharesPlugin_impl btsPubToAddress:pubkey  with_test:is_test];
@@ -304,7 +308,7 @@ NSString * const TEST_PREFIX = @"DVS";
     
     if (version != 27 || composedData.length != (1 + 20))
     {
-        NSLog(@"is_valid_btc_address_impl:  %d bytes (need 20+1 bytes); version: %d", (int)composedData.length, version);
+        NSLog(@"btcIsValidAddress:  %d bytes (need 20+1 bytes); version: %d", (int)composedData.length, version);
         return FALSE;
     }
     return TRUE;
@@ -471,7 +475,8 @@ NSString * const TEST_PREFIX = @"DVS";
    NSArray *words_array = [words componentsSeparatedByString:@" "];
     
    BTCMnemonic* mnemonic = [[BTCMnemonic alloc] initWithWords:words_array password:nil wordListType:BTCMnemonicWordListTypeEnglish];
-    
+   if(mnemonic == nil)
+       return nil;
    return [mnemonic keychain].extendedPrivateKey;
 }
 

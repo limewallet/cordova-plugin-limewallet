@@ -43,11 +43,11 @@
 }
 
 -(void) return_error:(CDVInvokedUrlCommand*)command withVals:(NSDictionary *)vals {
-  return [self return_result:command withVals:vals withStatus:CDVCommandStatus_ERROR];
+  [self return_result:command withVals:vals withStatus:CDVCommandStatus_ERROR];
 }
 
 -(void) return_ok:(CDVInvokedUrlCommand*)command withVals:(NSDictionary *)vals {
-  return [self return_result:command withVals:vals withStatus:CDVCommandStatus_OK];
+  [self return_result:command withVals:vals withStatus:CDVCommandStatus_OK];
 }
 
 /******************************************/
@@ -219,7 +219,7 @@
   BOOL is_test  = (BOOL)[args valueForKey:@"test"];
 
   NSString* addy = [BitsharesPlugin_impl btsWifToAddress:wif with_test:is_test];
-    [self return_ok:command withVals:@{@"addy":addy}];
+  [self return_ok:command withVals:@{@"addy":addy}];
 }
 
 -(void) btsPubToAddress:(CDVInvokedUrlCommand*)command {
@@ -431,19 +431,28 @@
 
 -(void)mnemonicToMasterKey:(CDVInvokedUrlCommand*)command {
     
-    NSLog(@"#--creamnemonicToMasterKeyteMemo");
+    NSLog(@"#--mnemonicToMasterKey");
     
     NSDictionary* args = [self getParameters:@[@"words"] withCommand:command];
     if(!args) {
+        NSLog(@"#--mnemonicToMasterKey ERROR");
         [self return_error:command withVals:@{@"messageData": @"Missing parameters"}];
+        return;
     }
     
     NSString *words = [args valueForKey:@"words"];
     
     NSString *res   = [BitsharesPlugin_impl mnemonicToMasterKey:words];
+    NSLog(@"#--mnemonicToMasterKey: %@ %@", words, res);
     
+    if(res==nil) {
+        NSLog(@"#--mnemonicToMasterKey ERROR");
+        [self return_error:command withVals:@{@"messageData": @"Invalid Words"}];
+        return;
+    }
+
     [self return_ok:command withVals:@{@"masterPrivateKey":res}];
-    
+    NSLog(@"#--mnemonicToMasterKey retorno!");
 }
 
 -(void)sha256:(CDVInvokedUrlCommand*)command {
@@ -453,6 +462,7 @@
     NSDictionary* args = [self getParameters:@[@"data"] withCommand:command];
     if(!args) {
         [self return_error:command withVals:@{@"messageData": @"Missing parameters"}];
+        return;
     }
     
     NSString *data = [args valueForKey:@"data"];
@@ -480,6 +490,7 @@
     NSDictionary* args = [self getParameters:@[@"length"] withCommand:command];
     if(!args) {
         [self return_error:command withVals:@{@"messageData": @"Missing parameters"}];
+        return;
     }
     
     int length = [[args valueForKey:@"length"] integerValue];
@@ -497,6 +508,7 @@
     NSDictionary* args = [self getParameters:@[@"value", @"key", @"encrypt"] withCommand:command];
     if(!args) {
         [self return_error:command withVals:@{@"messageData": @"Missing parameters"}];
+        return;
     }
     
     uint32_t value = [[args valueForKey:@"value"] unsignedIntegerValue];
@@ -517,6 +529,7 @@
     NSDictionary* args = [self getParameters:@[@"password", @"salt", @"c", @"dkLen"] withCommand:command];
     if(!args) {
         [self return_error:command withVals:@{@"messageData": @"Missing parameters"}];
+        return;
     }
     
     NSString *password  = [args valueForKey:@"password"];
