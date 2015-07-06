@@ -21,8 +21,6 @@
       <source-file src="src/android/BitsharesPlugin.java" target-dir="src/com/latincoin/bitwallet" />
       <source-file src="src/android/BitsharesPlugin_impl.java" target-dir="src/com/latincoin/bitwallet" />
       <source-file src="src/android/Crypto.java" target-dir="src/de/schildbach/wallet/util" />
-      <source-file src="src/android/BlockCypherTestnetParams.java" target-dir="src/com/latincoin/bitwallet" />
-      <source-file src="src/android/Skip32.java" target-dir="src/com/boivie/skip32" />
 
       <source-file src="src/android/libs/bitcoinj-core-0.12.2.jar" target-dir="libs" />
       <source-file src="src/android/libs/core-1.51.0.0.jar" target-dir="libs" />
@@ -31,8 +29,6 @@
       <source-file src="src/android/libs/orchid-1.0.jar" target-dir="libs" />
       <source-file src="src/android/libs/slf4j-android-1.7.10.jar" target-dir="libs" />
       <source-file src="src/android/libs/slf4j-api-1.7.10.jar" target-dir="libs" />
-
-      <resource-file src="assets/english.txt" target="assets/english.txt" />
 
       <config-file target="config.xml" parent="/*">
           <feature name="BitsharesPlugin">
@@ -51,15 +47,13 @@
 
         <header-file src="src/ios/BitsharesPlugin.h" />
         <source-file src="src/ios/BitsharesPlugin.m" />
+        <header-file src="src/ios/BitsharesPlugin_impl.h" />
+        <source-file src="src/ios/BitsharesPlugin_impl.m" />
 
         <header-file src="src/ios/src/hacko.h" />
         <source-file src="src/ios/src/hacko.c" />
-        <!--
-        <header-file src="src/ios/src/NSData+AESCrypt.h" />
-        <source-file src="src/ios/src/NSData+AESCrypt.m" compiler-flags="-fno-objc-arc" />
-        <header-file src="src/ios/src/NSString+AESCrypt.h" />
-        <source-file src="src/ios/src/NSString+AESCrypt.m" compiler-flags="-fno-objc-arc" />
-        -->
+
+        <source-file src="src/ios/skip32.c" />
         <header-file src="src/ios/src/RNCryptor/RNCryptor.h" />
         <header-file src="src/ios/src/RNCryptor/RNCryptor+Private.h" />
         <header-file src="src/ios/src/RNCryptor/RNCryptorEngine.h" />
@@ -81,126 +75,6 @@
         <framework src="Foundation.framework" />
         <framework src="AVFoundation.framework" />
         <source-file src="src/ios/libCoreBitcoin.a" framework="true" />
-
-        <!--
-        <header-file src="src/ios/CoreBitcoin/BTC256.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCAddress.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCBase58.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCBigNumber.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCBitcoinURL.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCBlindSignature.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCBlock.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCBlockchainInfo.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCBlockHeader.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCChainCom.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCCurrencyConverter.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCCurvePoint.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCData.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCEncryptedMessage.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCErrors.h" />
-        
-        <header-file src="src/ios/CoreBitcoin/BTCKey.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCKeychain.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCMnemonic.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCNetwork.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCNumberFormatter.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCOpcode.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCOutpoint.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCProcessor.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCProtocolSerialization.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCQRCode.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCScript.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCScriptMachine.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCSignatureHashType.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCTransaction.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCTransactionBuilder.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCTransactionInput.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCTransactionOutput.h" />
-        <header-file src="src/ios/CoreBitcoin/BTCUnitsAndLimits.h" />
-        <header-file src="src/ios/CoreBitcoin/CoreBitcoin.h" />
-        <header-file src="src/ios/CoreBitcoin/CoreBitcoin+Categories.h" />
-        <header-file src="src/ios/CoreBitcoin/NS+BTCBase58.h" />
-        <header-file src="src/ios/CoreBitcoin/NSData+BTCData.h" />
-
-        <header-file src="src/ios/openssl/aes.h"/>
-        <header-file src="src/ios/openssl/asn1.h"/>
-        <header-file src="src/ios/openssl/asn1_mac.h"/>
-        <header-file src="src/ios/openssl/asn1t.h"/>
-        <header-file src="src/ios/openssl/bio.h"/>
-        <header-file src="src/ios/openssl/blowfish.h"/>
-        <header-file src="src/ios/openssl/bn.h"/>
-        <header-file src="src/ios/openssl/buffer.h"/>
-        <header-file src="src/ios/openssl/camellia.h"/>
-        <header-file src="src/ios/openssl/cast.h"/>
-        <header-file src="src/ios/openssl/cmac.h"/>
-        <header-file src="src/ios/openssl/cms.h"/>
-        <header-file src="src/ios/openssl/comp.h"/>
-        <header-file src="src/ios/openssl/conf.h"/>
-        <header-file src="src/ios/openssl/conf_api.h"/>
-        <header-file src="src/ios/openssl/crypto.h"/>
-        <header-file src="src/ios/openssl/des.h"/>
-        <header-file src="src/ios/openssl/des_old.h"/>
-        <header-file src="src/ios/openssl/dh.h"/>
-        <header-file src="src/ios/openssl/dsa.h"/>
-        <header-file src="src/ios/openssl/dso.h"/>
-        <header-file src="src/ios/openssl/dtls1.h"/>
-        <header-file src="src/ios/openssl/e_os2.h"/>
-        <header-file src="src/ios/openssl/ebcdic.h"/>
-        <header-file src="src/ios/openssl/ec.h"/>
-        <header-file src="src/ios/openssl/ecdh.h"/>
-        <header-file src="src/ios/openssl/ecdsa.h"/>
-        <header-file src="src/ios/openssl/engine.h"/>
-        <header-file src="src/ios/openssl/err.h"/>
-        <header-file src="src/ios/openssl/evp.h"/>
-        <header-file src="src/ios/openssl/hmac.h"/>
-        <header-file src="src/ios/openssl/idea.h"/>
-        <header-file src="src/ios/openssl/krb5_asn.h"/>
-        <header-file src="src/ios/openssl/kssl.h"/>
-        <header-file src="src/ios/openssl/lhash.h"/>
-        <header-file src="src/ios/openssl/md4.h"/>
-        <header-file src="src/ios/openssl/md5.h"/>
-        <header-file src="src/ios/openssl/mdc2.h"/>
-        <header-file src="src/ios/openssl/modes.h"/>
-        <header-file src="src/ios/openssl/obj_mac.h"/>
-        <header-file src="src/ios/openssl/objects.h"/>
-        <header-file src="src/ios/openssl/ocsp.h"/>
-        <header-file src="src/ios/openssl/opensslconf.h"/>
-        <header-file src="src/ios/openssl/opensslv.h"/>
-        <header-file src="src/ios/openssl/ossl_typ.h"/>
-        <header-file src="src/ios/openssl/pem.h"/>
-        <header-file src="src/ios/openssl/pem2.h"/>
-        <header-file src="src/ios/openssl/pkcs12.h"/>
-        <header-file src="src/ios/openssl/pkcs7.h"/>
-        <header-file src="src/ios/openssl/pqueue.h"/>
-        <header-file src="src/ios/openssl/rand.h"/>
-        <header-file src="src/ios/openssl/rc2.h"/>
-        <header-file src="src/ios/openssl/rc4.h"/>
-        <header-file src="src/ios/openssl/ripemd.h"/>
-        <header-file src="src/ios/openssl/rsa.h"/>
-        <header-file src="src/ios/openssl/safestack.h"/>
-        <header-file src="src/ios/openssl/seed.h"/>
-        <header-file src="src/ios/openssl/sha.h"/>
-        <header-file src="src/ios/openssl/srp.h"/>
-        <header-file src="src/ios/openssl/srtp.h"/>
-        <header-file src="src/ios/openssl/ssl.h"/>
-        <header-file src="src/ios/openssl/ssl2.h"/>
-        <header-file src="src/ios/openssl/ssl23.h"/>
-        <header-file src="src/ios/openssl/ssl3.h"/>
-        <header-file src="src/ios/openssl/stack.h"/>
-        <header-file src="src/ios/openssl/symhacks.h"/>
-        <header-file src="src/ios/openssl/tls1.h"/>
-        <header-file src="src/ios/openssl/ts.h"/>
-        <header-file src="src/ios/openssl/txt_db.h"/>
-        <header-file src="src/ios/openssl/ui.h"/>
-        <header-file src="src/ios/openssl/ui_compat.h"/>
-        <header-file src="src/ios/openssl/whrlpool.h"/>
-        <header-file src="src/ios/openssl/x509.h"/>
-        <header-file src="src/ios/openssl/x509_vfy.h"/>
-        <header-file src="src/ios/openssl/x509v3.h" />
-
-        <source-file src="src/ios/libCoreBitcoin.a" framework="true" />
-        <source-file src="src/ios/libcrypto-ios.a" framework="true" compiler-flags="-fno-objc-arc"  />
-        <source-file src="src/ios/libssl-ios.a" framework="true" compiler-flags="-fno-objc-arc"  / -->
 
     </platform>
 </plugin>

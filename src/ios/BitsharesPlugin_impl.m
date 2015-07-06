@@ -1,19 +1,4 @@
 #import <Foundation/Foundation.h>
-#import <CommonCrypto/CommonCryptor.h>
-#import <CommonCrypto/CommonDigest.h>
-
-#import <CoreBitcoin/CoreBitcoin.h>
-#import "RNOpenSSLEncryptor.h"
-#import "RNOpenSSLDecryptor.h"
-#import <CommonCrypto/CommonCrypto.h>
-
-#if BTCDataRequiresOpenSSL
-#include <openssl/ripemd.h>
-#include <openssl/evp.h>
-#endif
-
-#import "BitsharesPlugin_impl.h"
-@implementation BitsharesPlugin_impl
 
 @interface NSData (NSData_Conversion)
 
@@ -24,22 +9,44 @@
 @implementation NSData (NSData_Conversion)
 #pragma mark - String Conversion
 - (NSString *)hexadecimalString {
-  /* Returns hexadecimal string of NSData. Empty string if data is empty.   */
-  
-  const unsigned char *dataBuffer = (const unsigned char *)[self bytes];
-  
-  if (!dataBuffer)
-      return [NSString string];
-  
-  NSUInteger          dataLength  = [self length];
-  NSMutableString     *hexString  = [NSMutableString stringWithCapacity:(dataLength * 2)];
-  
-  for (int i = 0; i < dataLength; ++i)
-    [hexString appendString:[NSString stringWithFormat:@"%02lx", (unsigned long)dataBuffer[i]]];
-  
-  return [NSString stringWithString:hexString];
+    /* Returns hexadecimal string of NSData. Empty string if data is empty.   */
+    
+    const unsigned char *dataBuffer = (const unsigned char *)[self bytes];
+    
+    if (!dataBuffer)
+        return [NSString string];
+    
+    NSUInteger          dataLength  = [self length];
+    NSMutableString     *hexString  = [NSMutableString stringWithCapacity:(dataLength * 2)];
+    
+    for (int i = 0; i < dataLength; ++i)
+        [hexString appendString:[NSString stringWithFormat:@"%02lx", (unsigned long)dataBuffer[i]]];
+    
+    return [NSString stringWithString:hexString];
 }
 @end
+
+
+#import <CommonCrypto/CommonCryptor.h>
+#import <CommonCrypto/CommonDigest.h>
+
+#import <CoreBitcoin/CoreBitcoin.h>
+#import "RNOpenSSLEncryptor.h"
+#import "RNOpenSSLDecryptor.h"
+#import <CommonCrypto/CommonCrypto.h>
+#import <Security/Security.h>
+
+#if BTCDataRequiresOpenSSL
+#include <openssl/ripemd.h>
+#include <openssl/evp.h>
+#endif
+
+void skip32 (unsigned char *key, unsigned char* buf, int encrypt);
+
+#import "BitsharesPlugin_impl.h"
+@implementation BitsharesPlugin_impl
+
+
 
 NSString * const PROD_PREFIX = @"BTS";
 NSString * const TEST_PREFIX = @"DVS";
@@ -70,7 +77,7 @@ NSString * const TEST_PREFIX = @"DVS";
 +(NSData*) btsDecodePubkey:(NSString*)epub with_test:(BOOL)is_test{
     
   if (![epub hasPrefix:(is_test?TEST_PREFIX:PROD_PREFIX)]) {
-    return nill;
+    return nil;
   }
   
   NSMutableData *data = BTCDataFromBase58([epub substringFromIndex:3]);
@@ -109,18 +116,16 @@ NSString * const TEST_PREFIX = @"DVS";
 }
 
 +(NSDictionary *) extractDataFromKey:(NSString*)extendedKey withTest:(BOOL)is_test {
-
   BTCKeychain* eKey = [[BTCKeychain alloc] initWithExtendedKey:extendedKey];
   NSData* pubKey    = eKey.publicKeychain.key.publicKey;
 
   BTCKey *theKey = [[BTCKeychain alloc] initWithExtendedKey:eKey.extendedPrivateKey].key;
-
   NSString *strPubKey  = [BitsharesPlugin_impl btsEncodePubkey:pubKey with_test:is_test];
   NSString *addy       = [BitsharesPlugin_impl btsPubToAddress:strPubKey with_test:is_test];
   NSString *strPrivKey = theKey.WIF;
   NSString *hexPrivKey = [theKey.privateKey hexadecimalString];
-
-  return @{addy, @"addy", strPubKey, @"pubkey", strPrivKey, @"privkey", @hexPrivKey, @"privkey_hex"};
+    
+  return @{@"address":addy, @"pubkey":strPubKey, @"privkey":strPrivKey, @"privkey_hex":hexPrivKey};
 }
 
 +(NSString *) derivePrivate:(NSString*)extendedKey withDeriv:(int)deriv withTest:(BOOL)is_test {
@@ -147,7 +152,7 @@ NSString * const TEST_PREFIX = @"DVS";
   
   if ([encryptedData respondsToSelector:@selector(base64EncodedStringWithOptions:)]) {
     return [encryptedData base64EncodedStringWithOptions:kNilOptions];  // iOS 7+
-
+  }
   return [encryptedData base64Encoding];                              // pre iOS7
 }
 
@@ -176,15 +181,18 @@ NSString * const TEST_PREFIX = @"DVS";
 +(BOOL) isValidWif:(NSString*)wif {
 
   // Es asi, ver BTCKey
+  BTCKey *key = nil;
   @try {
-    BTCPrivateKeyAddress* addr = [BTCPrivateKeyAddress addressWithBase58String:wif];
+    //BTCPrivateKeyAddress* addr = [BTCPrivateKeyAddress addressWithBase58String:wif];
+    key = [[BTCKey alloc] initWithWIF:wif];
     NSLog(@"#-- Wif IS VALID!!");
   }
   @catch (NSException *exception) {
     NSLog(@"#-- %@", exception.reason);
     return FALSE;
   }
-
+  if(key==nil)
+      return FALSE;
   return TRUE;
 }
 
@@ -194,17 +202,20 @@ NSString * const TEST_PREFIX = @"DVS";
 }
 
 +(NSString*) btsWifToAddress:(NSString*)wif with_test:(BOOL)is_test{
-  NSString *pubkey = [BitsharesPlugin_impl btsEncodePubkey:[[BTCKey alloc] initWithWIF:wif].compressedPublicKey with_test:is_test];
+  
+  //NSString *pubkey = [BitsharesPlugin_impl btsEncodePubkey:[[BTCKey alloc] initWithWIF:wif].compressedPublicKey with_test:is_test];
+  NSString *pubkey = [BitsharesPlugin_impl btsPubToAddress:[[[BTCKey alloc] initWithWIF:wif].compressedPublicKey hexadecimalString] with_test:is_test];
   return [BitsharesPlugin_impl btsPubToAddress:pubkey  with_test:is_test];
 }
 
+
 +(NSString*) btsPubToAddress:(NSString*)pubkey with_test:(BOOL)is_test{
 
-  NSString* pubkey_data = [BitsharesPlugin_impl btsDecodePubkey:pubkey with_test:is_test];
+  NSData* pubkey_data = [BitsharesPlugin_impl btsDecodePubkey:pubkey with_test:is_test];
 
-  NSData *data = [pubkey_data dataUsingEncoding:NSUTF8StringEncoding];
+  //NSData *data = [pubkey_data dataUsingEncoding:NSUTF8StringEncoding];
 
-  NSMutableData *r = BTCRIPEMD160( [self BTCSHA512:pubkey] );
+  NSMutableData *r = BTCRIPEMD160( [self BTCSHA512:pubkey_data] );
   NSData *c = BTCRIPEMD160(r);
 
   [r appendBytes:c.bytes length:4];
@@ -285,7 +296,7 @@ NSString * const TEST_PREFIX = @"DVS";
 }
 
 // #define BTCPublicKeyAddressLength 20
--(BOOL) is_valid_btc_address_impl:(NSString*)addy with_test:(BOOL)is_test{
++(BOOL) btcIsValidAddress:(NSString*)addy with_test:(BOOL)is_test{
     
   if(is_test){
     const char* cstring =[addy cStringUsingEncoding:NSASCIIStringEncoding];
@@ -297,7 +308,7 @@ NSString * const TEST_PREFIX = @"DVS";
     
     if (version != 27 || composedData.length != (1 + 20))
     {
-        NSLog(@"is_valid_btc_address_impl:  %d bytes (need 20+1 bytes); version: %d", (int)composedData.length, version);
+        NSLog(@"btcIsValidAddress:  %d bytes (need 20+1 bytes); version: %d", (int)composedData.length, version);
         return FALSE;
     }
     return TRUE;
@@ -309,4 +320,212 @@ NSString * const TEST_PREFIX = @"DVS";
   return TRUE;
 }
 
++(NSString*) requestSignature:(NSString*)key withNonce:(int)nonce withUrl:(NSString*)url withBody:(NSString*)body {
+    
+    NSString *tmp = [[[NSString alloc] init] stringByAppendingFormat:@"%d%@%@", nonce, url, body];
+    
+    NSData   *tmp_req = [tmp dataUsingEncoding:NSUTF8StringEncoding];
+    NSData   *tmp_key = [key dataUsingEncoding:NSUTF8StringEncoding];
+
+    NSData   *res = BTCHMACSHA256(tmp_key, tmp_req);
+
+    return [res hexadecimalString];
+}
+
++(NSData*) getSharedSecret:(BTCKey *)Qp withDd:(BTCKey*)dd {
+    BTCKey *dh = [Qp diffieHellmanWithPrivateKey:dd];
+    return BTCSHA512([dh.compressedPublicKey subdataWithRange:NSMakeRange(1, 32)]);
+}
+
++(NSDictionary*) createMemo:(NSString*)fromPubkey withDestPubkey:(NSString*)destPubkey withMessage:(NSString*)message           withOneTimePriv:(NSString*)oneTimePriv with_test:(BOOL)is_test {
+
+    NSLog(@"#--createMemo");
+
+    //dest = (dd, Qd)
+    //tmp  = (dp, Qp)
+    //(xk, yk) = dp * Qd
+    //ss = sha512(xk)
+    //ss[:32] => key
+    //ss[32:48] => iv
+    
+    BTCKey *dp        = [[BTCKey alloc] initWithWIF:oneTimePriv];
+
+    BTCKey *Qd = [[BTCKey alloc] initWithPublicKey:[BitsharesPlugin_impl btsDecodePubkey:destPubkey with_test:is_test]];
+    
+    NSData *ss = [BitsharesPlugin_impl getSharedSecret:Qd withDd:dp];
+    
+    //NSLog(@"SHARED => %@", [ss hexadecimalString]);
+    //NSLog(@"IVO => %@",     [[ss subdataWithRange:NSMakeRange(32, 16)] hexadecimalString]);
+
+    
+    //build memo data
+
+    NSData *fromPubkey_b = [BitsharesPlugin_impl btsDecodePubkey:fromPubkey with_test:is_test];
+    NSData *message_b    = [message dataUsingEncoding:NSUTF8StringEncoding];
+    
+    NSMutableData *memo_content = [[NSMutableData alloc] initWithLength:message_b.length > 19 ? 33+8+19+1+32 : 33+8+19+1];
+    
+    //BTS_BLOCKCHAIN_MAX_MEMO_SIZE      = 19	
+    //BTS_BLOCKCHAIN_EXTENDED_MEMO_SIZE = 32
+    //total=51
+    
+    NSData *ocho = [[NSMutableData alloc] initWithLength:8];
+
+    //NSLog(@"==>%lu Inicializado largo", memo_content.length);
+    
+    
+    unsigned long i = MIN(message_b.length,19);
+    
+    [memo_content replaceBytesInRange:NSMakeRange(0 , 33) withBytes:fromPubkey_b.bytes length:33];
+    [memo_content replaceBytesInRange:NSMakeRange(33+0,  8) withBytes:ocho.bytes length:8];
+    [memo_content replaceBytesInRange:NSMakeRange(33+8,  i) withBytes:message_b.bytes length:i];
+
+    unsigned long j = MIN(message_b.length-19,32);
+    if( message_b.length > 19 )
+      [memo_content replaceBytesInRange:NSMakeRange(33+8+1+i, j) withBytes:message_b.bytes+19 length:j];
+    
+    NSError *error;
+    NSData *encrypted_memo_data = [RNEncryptor encryptData   : memo_content
+                                         withSettings  : kRNCryptorAES256Settings
+                                         encryptionKey : [ss subdataWithRange:NSMakeRange(0,  32)]
+                                         HMACKey       : nil
+                                         IV            : [ss subdataWithRange:NSMakeRange(32, 16)]
+                                         error         : &error];
+
+
+    //NSLog(@"==>Largo encriptado => %lu", encrypted_memo_data.length);
+    
+    NSData *cypher = [encrypted_memo_data subdataWithRange:NSMakeRange(18, encrypted_memo_data.length-18)];
+    
+    return @{
+             @"one_time_key"        : [BitsharesPlugin_impl btsEncodePubkey:dp.compressedPublicKey with_test:is_test],
+             @"encrypted_memo_data" : [cypher hexadecimalString],
+             @"full"                : [encrypted_memo_data hexadecimalString],
+    };
+    
+}
+
++(NSDictionary*) decryptMemo:(NSString*)oneTimeKey withEncryptedMemo:(NSString*)encryptedMemo withPrivkey:(NSString*)privKey           with_test:(BOOL)is_test {
+    
+    BTCKey *dd = [[BTCKey alloc] initWithWIF:privKey];
+
+    BTCKey *Qp = [[BTCKey alloc] initWithPublicKey:[BitsharesPlugin_impl btsDecodePubkey:oneTimeKey with_test:is_test]];
+    NSData *ss = [BitsharesPlugin_impl getSharedSecret:Qp withDd:dd];
+    
+
+    
+    NSMutableData *full = [[NSMutableData alloc] init];
+    [full appendData:BTCDataFromHex(@"0300")];
+    [full appendData:[ss subdataWithRange:NSMakeRange(32, 16)]];
+    [full appendData:BTCDataFromHex(encryptedMemo)];
+
+    //NSLog(@"===> FULLU %@",encryptedMemo);
+
+    NSError *error = nil;
+    NSData *decrypted_data = [RNDecryptor decryptData   : full
+                                          withSettings  : kRNCryptorAES256Settings
+                                          encryptionKey : [ss subdataWithRange:NSMakeRange(0,  32)]
+                                          HMACKey       : nil
+                                          error         : &error];
+
+    if(error != nil) {
+        return  @{
+          @"from"     : @"",
+          @"from_sig" : @"",
+          @"type"     : @"",
+          @"message"  : @"",
+          @"error"    : @"1"
+        };
+    }
+
+    
+    NSString *_from = [BitsharesPlugin_impl btsEncodePubkey:[decrypted_data subdataWithRange:NSMakeRange(0, 33)]  with_test:is_test];
+
+    NSString *_from_sig = [[decrypted_data subdataWithRange:NSMakeRange(33,   8)] hexadecimalString];
+    
+    NSMutableData *msg_data = [[NSMutableData alloc] initWithData: [decrypted_data subdataWithRange:NSMakeRange(33+8, 19)]];
+    
+    NSString *_type     = [[decrypted_data subdataWithRange:NSMakeRange(33+8+19, 1)] hexadecimalString];
+
+    if(decrypted_data.length > 33+8+19+1) {
+        [msg_data appendData:[decrypted_data subdataWithRange:NSMakeRange(33+8+19+1, 32)]];
+    }
+    
+    NSString *_message = [[NSString alloc] initWithBytes:msg_data.bytes length:msg_data.length encoding:NSUTF8StringEncoding];
+
+    return @{
+     @"from"     : _from,
+     @"from_sig" : _from_sig,
+     @"type"     : _type,
+     @"message"  : _message,
+     @"error"    : @"0"
+    };
+}
+
++(NSString*) createMnemonic:(int)entropy {
+
+    
+    BTCMnemonic* mnemonic = [[BTCMnemonic alloc] initWithEntropy:BTCRandomDataWithLength(entropy/8)  password:nil wordListType:BTCMnemonicWordListTypeEnglish];
+
+    return [mnemonic.words componentsJoinedByString:@" "];
+}
+
++(NSString*) mnemonicToMasterKey:(NSString*)words {
+    
+   NSArray *words_array = [words componentsSeparatedByString:@" "];
+    
+   BTCMnemonic* mnemonic = [[BTCMnemonic alloc] initWithWords:words_array password:nil wordListType:BTCMnemonicWordListTypeEnglish];
+   if(mnemonic == nil)
+       return nil;
+   return [mnemonic keychain].extendedPrivateKey;
+}
+
++(NSString *) sha256:(NSString *) text{
+   NSData *data = [text dataUsingEncoding:NSUTF8StringEncoding];
+//    return [[NSString alloc] initWithData:[self BTCSHA256:data] encoding:NSUTF8StringEncoding];
+    return [[self BTCSHA256:data]hexadecimalString];
+}
+
++(u_int32_t)randomInteger {
+    NSData *random = BTCRandomDataWithLength(4);
+    return *(uint32_t*)random.bytes;
+}
+
++(NSString*)randomData:(int)length{
+  return  [BTCRandomDataWithLength(length) hexadecimalString];
+}
+
+
++(uint32_t)skip32:(uint32_t)value withSkip32Key:(NSString*) skip32Key withEncrypt:(BOOL)encrypt {
+
+ uint32_t res = value;
+ NSData *key = BTCDataFromHex(skip32Key);
+ skip32((unsigned char*)key.bytes, (unsigned char*)&res, encrypt ? 1 : 0);
+ return res;
+}
+
++(NSString*)pbkdf2:(NSString*) password withSalt:(NSString*) salt withC:(int)c withDKeyLen:(int)dkLen{
+    
+    RNCryptorKeyDerivationSettings myRNCryptorKeyDerivationSettings;
+    myRNCryptorKeyDerivationSettings.keySize        = dkLen;
+    myRNCryptorKeyDerivationSettings.rounds         = c;
+    myRNCryptorKeyDerivationSettings.saltSize       = salt.length/2;
+    myRNCryptorKeyDerivationSettings.PRF            = kCCPRFHmacAlgSHA512;
+    myRNCryptorKeyDerivationSettings.PBKDFAlgorithm = kCCPBKDF2;
+    myRNCryptorKeyDerivationSettings.hasV2Password  = FALSE;
+    
+    return [[RNCryptor keyForPassword:password salt:BTCDataFromHex(salt) settings:myRNCryptorKeyDerivationSettings] hexadecimalString];
+}
+
+//private JSONObject pbkdf2(String password, String salt, int c, int dkLen)  throws JSONException, IOException, Exception {
+//    JSONObject result = new JSONObject();
+//    byte[] key = PBKDF2SHA512.derive(password, salt, c, dkLen);
+//    result.put("key", new String(Hex.encode(key), "UTF-8"));
+//    result.put("key_hash", new String(Hex.encode(sha256(key)), "UTF-8"));
+//    return result;
+//}
+
+
+
+@end
 
