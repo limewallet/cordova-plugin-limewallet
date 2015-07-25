@@ -70,7 +70,7 @@
   }
 
   NSString *extendedKey = [args valueForKey:@"key"];
-  BOOL is_test          = (BOOL)[args valueForKey:@"test"];
+  BOOL is_test          = [[args valueForKey:@"test"] boolValue];
 
   NSDictionary *result = [BitsharesPlugin_impl extractDataFromKey:extendedKey withTest:is_test];
   [self return_ok:command withVals:result];
@@ -86,7 +86,7 @@
   }
 
   NSString *extendedKey = [args valueForKey:@"key"];
-  BOOL is_test          = (BOOL)[args valueForKey:@"test"];
+  BOOL is_test          = [[args valueForKey:@"test"] boolValue];
   uint32_t deriv        = [[args valueForKey:@"deriv"] intValue];
 
   NSString *extendedPrivateKey = [BitsharesPlugin_impl derivePrivate:extendedKey withDeriv:deriv withTest:is_test];
@@ -216,7 +216,7 @@
   }
 
   NSString *wif = [args valueForKey:@"wif"];
-  BOOL is_test  = (BOOL)[args valueForKey:@"test"];
+  BOOL is_test  = [[args valueForKey:@"test"] boolValue];
 
   NSString* addy = [BitsharesPlugin_impl btsWifToAddress:wif with_test:is_test];
   [self return_ok:command withVals:@{@"addy":addy}];
@@ -232,7 +232,7 @@
   }
 
   NSString *pubkey = [args valueForKey:@"pubkey"];
-  BOOL is_test     = (BOOL)[args valueForKey:@"test"];
+  BOOL is_test     = [[args valueForKey:@"test"] boolValue];
   
   NSString* addy = [BitsharesPlugin_impl btsPubToAddress:pubkey with_test:is_test];
 
@@ -249,7 +249,7 @@
   }
 
   NSString *addy = [args valueForKey:@"addy"];
-  BOOL is_test   = (BOOL)[args valueForKey:@"test"];
+  BOOL is_test   = [[args valueForKey:@"test"] boolValue];
 
   BOOL is_valid = [BitsharesPlugin_impl btsIsValidAddress:addy with_test:is_test];
   if(!is_valid) {
@@ -270,7 +270,7 @@
   }
     
   NSString *pubkey = [args valueForKey:@"pubkey"];
-  BOOL is_test     = (BOOL)[args valueForKey:@"test"];
+  BOOL is_test     = [[args valueForKey:@"test"] boolValue];
   BOOL is_valid    = [BitsharesPlugin_impl btsIsValidPubkey:pubkey with_test:is_test];
 
   if(!is_valid) {
@@ -309,7 +309,7 @@
 
   NSString *signature = [args valueForKey:@"signature"];
   NSString *msg       = [args valueForKey:@"msg"];
-  BOOL     is_test    = (BOOL)[args valueForKey:@"test"];
+  BOOL     is_test    = [[args valueForKey:@"test"] boolValue];
 
   NSData *msg_data = [msg dataUsingEncoding:NSUTF8StringEncoding];
   NSData *signature_data = BTCDataWithHexString(signature);
@@ -334,7 +334,7 @@
   }
 
   NSString *addy      = [args valueForKey:@"addy"];
-  BOOL     is_test    = (BOOL)[args valueForKey:@"test"];
+  BOOL     is_test    = [[args valueForKey:@"test"] boolValue];
 
   BOOL is_valid = [BitsharesPlugin_impl btcIsValidAddress:addy with_test:is_test];
     
@@ -379,7 +379,7 @@
     NSString *destPubkey    = [args valueForKey:@"destPubkey"];
     NSString *message       = [args valueForKey:@"message"];
     NSString *oneTimePriv   = [args valueForKey:@"oneTimePriv"];
-    BOOL     is_test        = (BOOL)[args valueForKey:@"test"];
+    BOOL     is_test        = [[args valueForKey:@"test"] boolValue];
     
     NSDictionary *res = [BitsharesPlugin_impl createMemo:fromPubkey
                                             withDestPubkey:destPubkey
@@ -404,7 +404,7 @@
     NSString *oneTimeKey       = [args valueForKey:@"oneTimeKey"];
     NSString *encryptedMemo    = [args valueForKey:@"encryptedMemo"];
     NSString *privKey          = [args valueForKey:@"privKey"];
-    BOOL     is_test           = (BOOL)[args valueForKey:@"test"];
+    BOOL     is_test           = [[args valueForKey:@"test"] boolValue];
     
     NSDictionary *res = [BitsharesPlugin_impl decryptMemo:oneTimeKey withEncryptedMemo:encryptedMemo withPrivkey:privKey with_test:is_test];
     
@@ -443,7 +443,7 @@
     NSString *words = [args valueForKey:@"words"];
     
     NSString *res   = [BitsharesPlugin_impl mnemonicToMasterKey:words];
-    NSLog(@"#--mnemonicToMasterKey: %@ %@", words, res);
+    //NSLog(@"#--mnemonicToMasterKey: %@ %@", words, res);
     
     if(res==nil) {
         NSLog(@"#--mnemonicToMasterKey ERROR");
