@@ -20,7 +20,11 @@ public class BitsharesPlugin extends CordovaPlugin {
   public void initialize(CordovaInterface cordova, CordovaWebView webView) {
     super.initialize(cordova, webView);
     PRNGFixes.apply();
-    impl.BIP32EnglishFile = cordova.getActivity().getAssets().open("english.txt");
+    try {
+      impl.BIP32EnglishFile = cordova.getActivity().getAssets().open("english.txt");
+    } catch(Exception ex) {
+      impl.BIP32EnglishFile = null;
+    }
   }
 
   @Override

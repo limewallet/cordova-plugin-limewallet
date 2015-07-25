@@ -20,7 +20,9 @@
     <platform name="android">
       <source-file src="src/android/BitsharesPlugin.java" target-dir="src/com/latincoin/bitwallet" />
       <source-file src="src/android/BitsharesPlugin_impl.java" target-dir="src/com/latincoin/bitwallet" />
+      <source-file src="src/android/BlockCypherTestnetParams.java" target-dir="src/com/latincoin/bitwallet" />
       <source-file src="src/android/Crypto.java" target-dir="src/de/schildbach/wallet/util" />
+      <source-file src="src/android/Skip32.java" target-dir="src/com/boivie/skip32" />
 
       <source-file src="src/android/libs/bitcoinj-core-0.12.2.jar" target-dir="libs" />
       <source-file src="src/android/libs/core-1.51.0.0.jar" target-dir="libs" />
