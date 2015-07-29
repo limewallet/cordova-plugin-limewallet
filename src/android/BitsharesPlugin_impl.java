@@ -228,17 +228,8 @@ public class BitsharesPlugin_impl {
 
     ECKey.ECDSASignature sig = new ECKey.ECDSASignature(r,s);
 
-    // Now we have to work backwards to figure out the recId needed to recover the signature.
-    ECKey key = null;
-    int recId = -1;
-    for (int i = 0; i < 4; i++) {
-        System.out.println(i);
-        key= ECKey.recoverFromSignature(i, sig, hash, true);
-        if (key != null) {
-            recId = i;
-            break;
-        }
-    }
+    int i = (int)sig_bytes[0] - 27;
+    ECKey key = ECKey.recoverFromSignature(i, sig, hash, true);
 
     JSONObject result = new JSONObject();
     result.put("pubKey", key != null ? bts_encode_pubkey(test, key.getPubKey()) : "<null>");
