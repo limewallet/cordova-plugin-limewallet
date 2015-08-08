@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
         id="com.latincoin.BitsharesPlugin" version="0.0.1">
-    <name>BitShares</name>
-    <description>Bitshares Plugin</description>
-    <keywords>bitwallet,bitshares,corebitcoin</keywords>
-    <license>MIT</license>
+    <name>Limewallet Plugin</name>
+    <description>Limewallet Plugin</description>
+    <keywords>limewallet, bitshares, corebitcoin</keywords>
+    <license>MIA</license>
     <!-- info>
         After plugin installation please add "$(SRCROOT)/../../plugins/com.latincoin.BitsharesPlugin/src/ios/includes" to Build Settings (Combined view mode) -> Header Search Paths        
     </info -->
