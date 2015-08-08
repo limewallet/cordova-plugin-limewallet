@@ -27,7 +27,7 @@
       <source-file src="src/android/libs/bitcoinj-core-0.12.2.jar" target-dir="libs" />
       <source-file src="src/android/libs/core-1.51.0.0.jar" target-dir="libs" />
       <source-file src="src/android/libs/guava-16.0.1.jar" target-dir="libs" />
-      <source-file src="src/android/libs/jsr305.jar" target-dir="libs" />
+      <!-- <source-file src="src/android/libs/jsr305.jar" target-dir="libs" />-->
       <source-file src="src/android/libs/orchid-1.0.jar" target-dir="libs" />
       <source-file src="src/android/libs/slf4j-android-1.7.10.jar" target-dir="libs" />
       <source-file src="src/android/libs/slf4j-api-1.7.10.jar" target-dir="libs" />
