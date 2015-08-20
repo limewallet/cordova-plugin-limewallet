@@ -396,7 +396,7 @@
     
     NSLog(@"#--decryptMemo");
     
-    NSDictionary* args = [self getParameters:@[@"encryptedMemo", @"privKey", @"test"] withCommand:command];
+    NSDictionary* args = [self getParameters:@[@"encryptedMemo", @"privKey", @"test", @"oneTimeKey"] withCommand:command];
     if(!args) {
         [self return_error:command withVals:@{@"messageData": @"Missing parameters"}];
     }

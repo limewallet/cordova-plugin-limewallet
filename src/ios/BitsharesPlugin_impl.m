@@ -405,30 +405,53 @@ NSString * const TEST_PREFIX = @"DVS";
     
 }
 
-+(NSDictionary*) decryptMemo:(NSString*)oneTimeKey withEncryptedMemo:(NSString*)encryptedMemo withPrivkey:(NSString*)privKey           with_test:(BOOL)is_test {
-    
-    BTCKey *dd = [[BTCKey alloc] initWithWIF:privKey];
++(NSDictionary*) decryptMemo:(NSString*)oneTimeKey withEncryptedMemo:(NSString*)encryptedMemo withPrivkey:(NSString*)privKey with_test:(BOOL)is_test {
+    @try {
+        BTCKey *dd = [[BTCKey alloc] initWithWIF:privKey];
+        BTCKey *Qp = [[BTCKey alloc] initWithPublicKey:[BitsharesPlugin_impl btsDecodePubkey:oneTimeKey with_test:is_test]];
+        NSData *ss = [BitsharesPlugin_impl getSharedSecret:Qp withDd:dd];
+        
+        NSMutableData *full = [[NSMutableData alloc] init];
+        [full appendData:BTCDataFromHex(@"0300")];
+        [full appendData:[ss subdataWithRange:NSMakeRange(32, 16)]];
+        [full appendData:BTCDataFromHex(encryptedMemo)];
 
-    BTCKey *Qp = [[BTCKey alloc] initWithPublicKey:[BitsharesPlugin_impl btsDecodePubkey:oneTimeKey with_test:is_test]];
-    NSData *ss = [BitsharesPlugin_impl getSharedSecret:Qp withDd:dd];
-    
+        NSError *error = nil;
+        NSData *decrypted_data = [RNDecryptor decryptData   : full
+                                              withSettings  : kRNCryptorAES256Settings
+                                              encryptionKey : [ss subdataWithRange:NSMakeRange(0,  32)]
+                                              HMACKey       : nil
+                                              error         : &error];
+        if(error != nil) {
+            return  @{
+              @"from"     : @"",
+              @"from_sig" : @"",
+              @"type"     : @"",
+              @"message"  : @"",
+              @"error"    : @"1"
+            };
+        }
+        
+        NSString *_from = [BitsharesPlugin_impl btsEncodePubkey:[decrypted_data subdataWithRange:NSMakeRange(0, 33)]  with_test:is_test];
+        NSString *_from_sig = [[decrypted_data subdataWithRange:NSMakeRange(33,   8)] hexadecimalString];
+        
+        NSMutableData *msg_data = [[NSMutableData alloc] initWithData: [decrypted_data subdataWithRange:NSMakeRange(33+8, 19)]];
+        NSLog(@"decryptMemo # 8");
+        NSString *_type     = [[decrypted_data subdataWithRange:NSMakeRange(33+8+19, 1)] hexadecimalString];
+        if(decrypted_data.length > 33+8+19+1) {
+            [msg_data appendData:[decrypted_data subdataWithRange:NSMakeRange(33+8+19+1, 32)]];
+        }
+        NSString *_message = [[NSString alloc] initWithBytes:msg_data.bytes length:msg_data.length encoding:NSUTF8StringEncoding];
 
-    
-    NSMutableData *full = [[NSMutableData alloc] init];
-    [full appendData:BTCDataFromHex(@"0300")];
-    [full appendData:[ss subdataWithRange:NSMakeRange(32, 16)]];
-    [full appendData:BTCDataFromHex(encryptedMemo)];
-
-    //NSLog(@"===> FULLU %@",encryptedMemo);
-
-    NSError *error = nil;
-    NSData *decrypted_data = [RNDecryptor decryptData   : full
-                                          withSettings  : kRNCryptorAES256Settings
-                                          encryptionKey : [ss subdataWithRange:NSMakeRange(0,  32)]
-                                          HMACKey       : nil
-                                          error         : &error];
-
-    if(error != nil) {
+        return @{
+         @"from"     : _from,
+         @"from_sig" : _from_sig,
+         @"type"     : _type,
+         @"message"  : _message,
+         @"error"    : @"0"
+        };
+    }
+    @catch (NSException *exception) {
         return  @{
           @"from"     : @"",
           @"from_sig" : @"",
@@ -437,29 +460,7 @@ NSString * const TEST_PREFIX = @"DVS";
           @"error"    : @"1"
         };
     }
-
     
-    NSString *_from = [BitsharesPlugin_impl btsEncodePubkey:[decrypted_data subdataWithRange:NSMakeRange(0, 33)]  with_test:is_test];
-
-    NSString *_from_sig = [[decrypted_data subdataWithRange:NSMakeRange(33,   8)] hexadecimalString];
-    
-    NSMutableData *msg_data = [[NSMutableData alloc] initWithData: [decrypted_data subdataWithRange:NSMakeRange(33+8, 19)]];
-    
-    NSString *_type     = [[decrypted_data subdataWithRange:NSMakeRange(33+8+19, 1)] hexadecimalString];
-
-    if(decrypted_data.length > 33+8+19+1) {
-        [msg_data appendData:[decrypted_data subdataWithRange:NSMakeRange(33+8+19+1, 32)]];
-    }
-    
-    NSString *_message = [[NSString alloc] initWithBytes:msg_data.bytes length:msg_data.length encoding:NSUTF8StringEncoding];
-
-    return @{
-     @"from"     : _from,
-     @"from_sig" : _from_sig,
-     @"type"     : _type,
-     @"message"  : _message,
-     @"error"    : @"0"
-    };
 }
 
 +(NSString*) createMnemonic:(int)entropy {
