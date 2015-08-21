@@ -428,7 +428,7 @@ NSString * const TEST_PREFIX = @"DVS";
               @"from_sig" : @"",
               @"type"     : @"",
               @"message"  : @"",
-              @"error"    : @"1"
+              @"error"    : @1
             };
         }
         
@@ -448,7 +448,7 @@ NSString * const TEST_PREFIX = @"DVS";
          @"from_sig" : _from_sig,
          @"type"     : _type,
          @"message"  : _message,
-         @"error"    : @"0"
+         @"error"    : @0
         };
     }
     @catch (NSException *exception) {
@@ -457,7 +457,7 @@ NSString * const TEST_PREFIX = @"DVS";
           @"from_sig" : @"",
           @"type"     : @"",
           @"message"  : @"",
-          @"error"    : @"1"
+          @"error"    : @1
         };
     }
     
@@ -498,11 +498,10 @@ NSString * const TEST_PREFIX = @"DVS";
 
 
 +(uint32_t)skip32:(uint32_t)value withSkip32Key:(NSString*) skip32Key withEncrypt:(BOOL)encrypt {
-
- uint32_t res = value;
+ uint32_t res = CFSwapInt32HostToBig(value);
  NSData *key = BTCDataFromHex(skip32Key);
  skip32((unsigned char*)key.bytes, (unsigned char*)&res, encrypt ? 1 : 0);
- return res;
+ return CFSwapInt32HostToBig(res);
 }
 
 +(NSString*)pbkdf2:(NSString*) password withSalt:(NSString*) salt withC:(int)c withDKeyLen:(int)dkLen{
