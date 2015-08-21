@@ -513,7 +513,7 @@
     
     uint32_t value = [[args valueForKey:@"value"] unsignedIntegerValue];
     NSString *key  = [args valueForKey:@"key"];
-    BOOL  encrypt  = (BOOL)[args valueForKey:@"encrypt"];
+    BOOL  encrypt  = [[args valueForKey:@"encrypt"] boolValue];
     
     uint32_t res   = [BitsharesPlugin_impl skip32:value withSkip32Key:key withEncrypt:encrypt];
     
